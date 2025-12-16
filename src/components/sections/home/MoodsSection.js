@@ -1,9 +1,14 @@
 export const MoodsSection = {
-  API_URL: "https://youtube-music.f8team.dev/api/moods?limit=20",
+  API_URL: `${import.meta.env.VITE_BASE_URL}/moods`,
   ITEMS_PER_VIEW: 5,
   CARD_WIDTH: 208,
   currentIndex: 0,
   moods: [],
+  router: null,
+  activeMoodSlug: null,
+  setRouter(routerInstance) {
+    this.router = routerInstance;
+  },
 
   render() {
     return `
@@ -41,9 +46,11 @@ export const MoodsSection = {
       this.hideLoading();
       this.renderMoods();
       this.updateNavigation();
+      return true;
     } catch (error) {
       console.error("Error fetching moods:", error);
       this.showError();
+      return false;
     }
   },
 
@@ -66,12 +73,32 @@ export const MoodsSection = {
     this.moods.forEach((mood) => {
       const moodCard = document.createElement("div");
       moodCard.className = "flex-shrink-0";
+      const isActive = this.activeMoodSlug === mood.slug;
+      const activeClasses = isActive
+        ? "bg-white text-gray-900 border-white font-semibold"
+        : "bg-gray-800 hover:bg-gray-700 text-white border-gray-800";
       moodCard.innerHTML = `
-        <button class="px-3 py-3 bg-gray-800 hover:bg-gray-700 text-white rounded-lg transition-all duration-300 transform border border-gray-800">
+        <button
+          class="mood-btn px-3 py-3 ${activeClasses} rounded-lg transition-all duration-300 transform border cursor-pointer"
+          data-mood-slug="${mood.slug}">
           ${mood.name}
         </button>
       `;
       container.appendChild(moodCard);
+    });
+
+    this.setupMoodButtonListeners();
+  },
+
+  setupMoodButtonListeners() {
+    const moodButtons = document.querySelectorAll(".mood-btn");
+    moodButtons.forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        const moodSlug = e.currentTarget.dataset.moodSlug;
+        if (this.router) {
+          this.router.navigate(`/mood/${moodSlug}`);
+        }
+      });
     });
   },
 
@@ -112,8 +139,10 @@ export const MoodsSection = {
     });
   },
 
-  init() {
+  init(activeMoodSlug = null) {
+    this.activeMoodSlug = activeMoodSlug;
+    this.currentIndex = 0;
     this.setupEventListeners();
-    this.fetchMoods();
+    return this.fetchMoods();
   },
 };

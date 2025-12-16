@@ -1,9 +1,12 @@
 export const VMusicSection = {
-  API_URL:
-    "https://youtube-music.f8team.dev/api/playlists/by-country?country=VN",
+  API_URL: `${import.meta.env.VITE_BASE_URL}/playlists/by-country?country=VN`,
   ITEMS_PER_PAGE: 4,
   currentPage: 0,
   playlists: [],
+  router: null,
+  setRouter(routerInstance) {
+    this.router = routerInstance;
+  },
   render() {
     return `
       <section class="mb-14">
@@ -26,13 +29,10 @@ export const VMusicSection = {
           <div id="vmusic-container" class="flex gap-4 transition-transform duration-500 ease-in-out">
          </div>
         </div>
-
-
         <div id="vmusic-loading" class="text-white py-8 text-center">
           <i class="fas fa-spinner fa-spin text-3xl"></i>
           <p class="mt-2">Đang tải...</p>
         </div>
-
         <div id="vmusic-error"
           class="hidden text-center text-red-400 py-8">
           <p>Không thể tải dữ liệu</p>
@@ -50,18 +50,27 @@ export const VMusicSection = {
       this.hideLoading();
       this.renderPlaylists();
       this.updateNavigation();
+      return true;
     } catch (err) {
       console.error(err);
       this.showError();
+      return false;
     }
   },
 
   hideLoading() {
     document.querySelector("#vmusic-loading")?.classList.add("hidden");
   },
+
   showError() {
     document.querySelector("#vmusic-loading")?.classList.add("hidden");
     document.querySelector("#vmusic-error")?.classList.remove("hidden");
+  },
+
+  navigateToPlaylist(playlist) {
+    const slug = playlist.slug || playlist.id || playlist._id;
+    if (!slug || !this.router) return;
+    this.router.navigate(`/playlist/details/${slug}`);
   },
 
   renderPlaylists() {
@@ -77,34 +86,49 @@ export const VMusicSection = {
       const title = playlist.title ?? "Unknown Playlist";
       const artists = playlist.artists?.join(", ") ?? "Various Artists";
       card.innerHTML = `
-      <div class="group cursor-pointer">
-        <div class="relative">
-          <img
-            src="${thumbnail}"
-            alt="${title}"
-            class="w-full aspect-square object-cover rounded-lg cursor-pointer"
-          />
-          <button
-            class="absolute inset-0 flex items-center justify-center
-                   bg-black/40 opacity-0
-                   group-hover:opacity-100
-                   transition-opacity duration-200 rounded-lg cursor-pointer">
-            <div
-              class="w-12 h-12 bg-white rounded-full
-                     flex items-center justify-center transition">
-              <i class="fas fa-play text-gray-900 text-sm ml-0.5"></i>
-            </div>
-          </button>
+        <div class="group cursor-pointer" data-playlist-slug="${
+          playlist.slug || playlist.id || ""
+        }">
+          <div class="relative">
+            <img
+              src="${thumbnail}"
+              alt="${title}"
+              class="w-full aspect-square object-cover rounded-lg cursor-pointer"
+            />
+            <button
+              class="vmusic-play-btn absolute inset-0 flex items-center justify-center
+                     bg-black/40 opacity-0 group-hover:opacity-100
+                     transition-opacity duration-200 rounded-lg cursor-pointer">
+              <div
+                class="w-12 h-12 bg-white rounded-full
+                       flex items-center justify-center transition hover:scale-110">
+                <i class="fas fa-play text-gray-900 text-sm ml-0.5"></i>
+              </div>
+            </button>
+          </div>
+          <h3 class="mt-3 text-white truncate">
+            ${title}
+          </h3>
+          <p class="text-gray-400 text-sm truncate">
+            ${artists}
+          </p>
         </div>
-        <h3 class="mt-3 text-white truncate">
-          ${title}
-        </h3>
-        <p class="text-gray-400 text-sm truncate">
-          ${artists}
-        </p>
-      </div>
-    `;
+      `;
 
+      const playlistCard = card.querySelector("[data-playlist-slug]");
+      const playBtn = card.querySelector(".vmusic-play-btn");
+      if (playlistCard) {
+        playlistCard.addEventListener("click", (e) => {
+          if (e.target.closest(".vmusic-play-btn")) return;
+          this.navigateToPlaylist(playlist);
+        });
+      }
+      if (playBtn) {
+        playBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          this.navigateToPlaylist(playlist);
+        });
+      }
       container.appendChild(card);
     });
   },
@@ -116,7 +140,6 @@ export const VMusicSection = {
     prevBtn.dataset.disabled = this.currentPage === 0;
     nextBtn.dataset.disabled = this.currentPage >= totalPages - 1;
   },
-
   slide(direction) {
     const totalPages = Math.ceil(this.playlists.length / this.ITEMS_PER_PAGE);
     if (direction === "next" && this.currentPage < totalPages - 1) {
@@ -141,6 +164,6 @@ export const VMusicSection = {
 
   init() {
     this.setupEventListeners();
-    this.fetchPlaylists();
+    return this.fetchPlaylists();
   },
 };

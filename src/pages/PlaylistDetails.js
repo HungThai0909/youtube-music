@@ -1,0 +1,151 @@
+import { Header } from "../components/header";
+import { Sidebar } from "../components/sidebar";
+import { initSidebarToggle } from "./home";
+
+let currentRouter = null;
+export const PlaylistDetail = (match) => {
+  const app = document.querySelector("#app");
+  const playlistSlug = match?.data?.id;
+  app.innerHTML = `
+    ${Header()}
+    <div class="flex pt-[64px]">
+      <div class="w-22">${Sidebar()}</div>
+      <main class="flex-1 bg-gray-900 overflow-y-auto h-[calc(100vh-64px)]">
+        <div id="playlist-loading-overlay"
+          class="fixed inset-0 z-[100] bg-black flex flex-col items-center justify-center">
+          <div class="w-16 h-16 border-4 border-gray-700 border-t-white rounded-full animate-spin"></div>
+        </div>
+        <div class="px-12 py-8 max-w-[1800px] mx-auto">
+          <div id="playlist-hero"></div>
+        </div>
+      </main>
+    </div>
+  `;
+
+  initSidebarToggle();
+  loadPlaylistDetail(playlistSlug);
+};
+
+export const setPlaylistDetailRouter = (router) => {
+  currentRouter = router;
+};
+
+async function loadPlaylistDetail(slug) {
+  try {
+    const data = await fetchPlaylist(slug);
+    renderHero(data);
+    hideLoading();
+  } catch (e) {
+    console.error(e);
+    hideLoading();
+  }
+}
+
+async function fetchPlaylist(slug) {
+  const url = `${
+    import.meta.env.VITE_BASE_URL
+  }/playlists/details/${slug}?limit=50`;
+  console.log("Fetching:", url);
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("Fetch failed");
+  return res.json();
+}
+
+function renderHero(data) {
+  const tracks = data.tracks || [];
+  document.querySelector("#playlist-hero").innerHTML = `
+    <div class="flex gap-12">
+      <div class="w-1/2 sticky top-20 self-start flex flex-col items-center">
+       <img src="${data.thumbnails?.[0]}" 
+       class="w-96 h-96 aspect-square rounded-2xl shadow-2xl object-cover mb-8"> 
+       <h1 class="text-xl font-bold text-white mb-4 leading-tight text-center "> ${
+         data.title
+       }
+       </h1>
+      <p class="text-white text-lg mb-6 "> ${data.description || ""} 
+      </p>
+      <div class="flex items-center gap-3 text-white text-base mb-2"> 
+      <span>${data.songCount || tracks.length}bài hát</span>
+      <span>•</span> 
+      <span>${formatTotalDuration(data.duration)}</span> 
+      </div>
+      <p class="text-white text-base">Các nghệ sĩ: ${formatArtists(
+        data.artists
+      )} 
+      </p> 
+      </div>
+      <div class="w-1/2 min-h-[200vh]" id="playlist-tracks-container">
+        ${renderTracks(tracks)}
+      </div>
+    </div>
+  `;
+}
+
+function renderTracks(tracks) {
+  if (!tracks || tracks.length === 0) {
+    return '<p class="text-gray-400 text-center py-8">Không có bài hát nào</p>';
+  }
+  return tracks
+    .map(
+      (t, i) => `
+      <div class="group flex items-center gap-4 py-3 px-4 rounded-lg hover:bg-gray-800 cursor-pointer transition-colors">
+        <span class="text-gray-400 w-8 text-lg font-medium">${i + 1}</span>
+        <div class="w-14 h-14 rounded-lg overflow-hidden flex-shrink-0 shadow-md relative">
+          <img src="${t.thumbnails?.[0] || ""}" 
+               class="w-full h-full object-cover"
+               onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2256%22 height=%2256%22%3E%3Crect fill=%22%23374151%22 width=%22100%25%22 height=%22100%25%22/%3E%3C/svg%3E'">
+          <button
+            class="absolute inset-0 flex items-center justify-center
+                   bg-black/40 opacity-0 group-hover:opacity-100
+                   transition-opacity duration-200 rounded-lg cursor-pointer"
+            onclick="event.stopPropagation()">
+            <div
+              class="w-8 h-8 bg-white rounded-full
+                     flex items-center justify-center transition cursor-pointer">
+              <i class="fas fa-play text-gray-900 text-sm ml-0.5"></i>
+            </div>
+          </button>
+        </div>
+        <div class="flex-1 min-w-0">
+          <h3 class="text-white font-medium truncate transition-colors">
+            ${t.title}
+          </h3>
+          <p class="text-gray-400 text-sm truncate">
+            ${t.artists?.join(", ") || "Various Artists"}
+          </p>
+        </div>
+        <span class="text-gray-400 text-sm font-medium">
+          ${formatDuration(t.duration)}
+        </span>
+      </div>`
+    )
+    .join("");
+}
+
+function hideLoading() {
+  document.querySelector("#playlist-loading-overlay")?.remove();
+}
+
+function formatDuration(sec = 0) {
+  const m = Math.floor(sec / 60);
+  const s = Math.floor(sec % 60);
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
+
+function formatTotalDuration(totalSeconds = 0) {
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  if (hours > 0) {
+    return `${hours} giờ ${minutes} phút`;
+  }
+  return `${minutes} phút`;
+}
+
+function formatArtists(artists = []) {
+  if (!artists || artists.length === 0) return "Various Artists";
+  if (artists.length === 1) return artists[0];
+  if (artists.length <= 3) return artists.join(", ");
+  return (
+    artists.slice(0, 3).join(", ") + ` và ${artists.length - 3} nghệ sĩ khác`
+  );
+}
