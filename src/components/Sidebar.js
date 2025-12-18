@@ -56,11 +56,11 @@ export const Sidebar = () => {
           <i class="fa-regular fa-bookmark text-xl text-white"></i>
           <span class="font-medium text-base">Thư viện</span>
         </a>
-        <div class="h-px bg-zinc-800 my-3 mx-2"></div>
         <a href="#" class="sidebar-link flex items-center gap-5 px-4 py-3 text-white hover:bg-zinc-800 transition-colors rounded-full mb-1">
           <i class="fas fa-crown text-2xl"></i>
           <span class="font-medium text-base">Nâng cấp</span>
         </a>
+        <div class="h-px bg-zinc-800 my-3 mx-2"></div>
       </nav>
       <div class="px-5 mt-6">
         <button class="w-full bg-white text-black font-medium py-2.5 rounded-full hover:bg-gray-200 transition-colors text-sm mb-3">

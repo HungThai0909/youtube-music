@@ -1,19 +1,18 @@
 export const TodayHitSection = {
   API_URL: `${import.meta.env.VITE_BASE_URL}/home/todays-hits`,
-  ITEMS_PER_VIEW: 5,
-  CARD_WIDTH: 280,
   currentIndex: 0,
   playlists: [],
   isDragging: false,
   router: null,
+  hideInternalLoading: false,
   setRouter(routerInstance) {
     this.router = routerInstance;
   },
   render() {
     return `
-      <section class="mb-10">
+      <section class="mb-10"> 
         <div class="flex items-center justify-between mb-6">
-          <h2 class="text-3xl font-bold text-white">Today's Hits</h2>
+          <h2 class="text-5xl font-bold text-white">Today's Hits</h2>
           <div class="flex gap-4">
             <button id="today-hits-prev"
               class="w-10 h-10 rounded-full bg-gray-800 hover:bg-gray-700
@@ -29,25 +28,33 @@ export const TodayHitSection = {
             </button>
           </div>
         </div>
-        <div class="relative overflow-hidden">
-          <div id="today-hits-container"
-            class="flex gap-4 transition-transform duration-500 ease-in-out">
+        <div class="relative overflow-hidden" id="today-hits-viewport">
+          <div id="today-hits-container" class="flex gap-4 transition-transform duration-500 ease-in-out">
+            ${Array(5).fill('').map(() => `
+              <div class="flex-shrink-0 w-64 opacity-0">
+                <div class="w-full aspect-square rounded-lg bg-gray-800"></div>
+                <div class="mt-3 h-5 bg-gray-800 rounded w-3/4"></div>
+                <div class="mt-2 h-4 bg-gray-800 rounded w-1/2"></div>
+              </div>
+            `).join('')}
           </div>
         </div>
-        <div id="today-hits-scrollbar-track"
-          class="mt-4 h-1 bg-gray-700 rounded-full relative cursor-pointer">
-          <div id="today-hits-scrollbar-thumb"
-            class="absolute top-1/2 -translate-y-1/2
-                   h-1 bg-gray-400 rounded-full
-                   transition-all duration-300 cursor-pointer w-1/5 left-[0%]">
+        <div class="h-5 mt-4">
+          <div id="today-hits-scrollbar-track"
+            class="h-1 bg-gray-700 rounded-full relative cursor-pointer hidden">
+            <div id="today-hits-scrollbar-thumb"
+              class="absolute top-1/2 -translate-y-1/2
+                     h-1 bg-gray-400 rounded-full
+                     transition-all duration-300 cursor-pointer w-1/5 left-0">
+            </div>
           </div>
         </div>
-        <div id="today-hits-loading" class="text-white py-8 text-center">
+        <div id="today-hits-loading" class="hidden text-white py-8 text-center">
           <i class="fas fa-spinner fa-spin text-3xl"></i>
           <p class="mt-2">Đang tải...</p>
         </div>
         <div id="today-hits-error"
-          class="hidden text-center text-red-400 py-8">
+          class="hidden text-center text-white py-8">
           <i class="fas fa-exclamation-circle text-3xl"></i>
           <p class="mt-2">Không thể tải dữ liệu</p>
         </div>
@@ -55,15 +62,54 @@ export const TodayHitSection = {
     `;
   },
 
+  hideScrollbar() {
+    document.querySelector("#today-hits-scrollbar-track")?.classList.add("hidden");
+  },
+
+  showScrollbar() {
+    document.querySelector("#today-hits-scrollbar-track")?.classList.remove("hidden");
+  },
+
+  getCarouselMetrics() {
+    const viewport = document.querySelector("#today-hits-viewport");
+    const container = document.querySelector("#today-hits-container");
+    const firstCard = container?.querySelector(".w-64");
+    if (!viewport || !container) {
+      return { cardWidth: 272, itemsPerView: 5, viewportWidth: 1360, totalWidth: 0 };
+    }
+    const viewportWidth = viewport.offsetWidth;
+    const gap = parseFloat(getComputedStyle(container).gap) || 16;
+    const cardWidth = firstCard ? firstCard.offsetWidth : 256;
+    return {
+      cardWidth: cardWidth + gap,
+      itemsPerView: Math.floor(viewportWidth / (cardWidth + gap)),
+      viewportWidth,
+      totalWidth: container.scrollWidth,
+    };
+  },
+
+  getMaxIndex() {
+    const metrics = this.getCarouselMetrics();
+    return Math.max(0, this.playlists.length - metrics.itemsPerView);
+  },
+
   async fetchPlaylists() {
     try {
       const res = await fetch(this.API_URL);
       if (!res.ok) throw new Error("Fetch error");
       this.playlists = await res.json();
-      this.hideLoading();
-      this.renderPlaylists();
-      this.updateNavigation();
-      this.updateScrollbar();
+      await this.renderPlaylists();
+      requestAnimationFrame(() => {
+        this.updateNavigation();
+        this.updateScrollbar();
+        if (this.hideInternalLoading) {
+          this.hideInternalLoading = false;
+          const metrics = this.getCarouselMetrics();
+          if (this.playlists.length > metrics.itemsPerView) {
+            this.showScrollbar();
+          }
+        }
+      });
       return true;
     } catch (err) {
       console.error(err);
@@ -82,146 +128,154 @@ export const TodayHitSection = {
   },
 
   updateScrollbar() {
+    const track = document.querySelector("#today-hits-scrollbar-track");
     const thumb = document.querySelector("#today-hits-scrollbar-thumb");
-    if (!thumb || !this.playlists.length) return;
-    const visibleRatio = this.ITEMS_PER_VIEW / this.playlists.length;
+    if (!track || !thumb || !this.playlists.length) {
+      this.hideScrollbar();
+      return;
+    }
+    const metrics = this.getCarouselMetrics();
+    const maxIndex = this.getMaxIndex();
+    if (this.playlists.length <= metrics.itemsPerView) {
+      this.hideScrollbar();
+      return;
+    }
+    this.showScrollbar();
+    const visibleRatio = metrics.itemsPerView / this.playlists.length;
     const thumbWidth = Math.max(visibleRatio * 100, 10);
-    const maxIndex = this.playlists.length - this.ITEMS_PER_VIEW;
-    const progress = maxIndex > 0 ? this.currentIndex / maxIndex : 0;
-    const maxLeft = 100 - thumbWidth;
-
+    const progress = maxIndex ? this.currentIndex / maxIndex : 0;
     thumb.style.width = `${thumbWidth}%`;
-    thumb.style.left = `${progress * maxLeft}%`;
+    thumb.style.left = `${progress * (100 - thumbWidth)}%`;
   },
 
   navigateToPlaylist(playlist) {
     const slug = playlist.slug || playlist.id || playlist._id;
-    if (!slug || !this.router) return;
-    this.router.navigate(`/playlist/details/${slug}`);
+    if (slug && this.router) {
+      this.router.navigate(`/playlist/details/${slug}`);
+    }
   },
 
   renderPlaylists() {
-    const container = document.querySelector("#today-hits-container");
-    if (!container) return;
-    container.innerHTML = "";
-    
-    this.playlists.forEach((playlist) => {
-      const card = document.createElement("div");
-      card.className = "flex-shrink-0 w-64";
-      card.innerHTML = `
-        <div class="group cursor-pointer" data-playlist-slug="${playlist.slug || playlist.id || ''}">
-          <div class="relative">
-            <img
-              src="${playlist.thumbnails?.[0] ?? ""}"
-              class="w-full aspect-square object-cover rounded-lg"
-            />
-            <button
-              class="playlist-play-btn absolute inset-0 flex items-center justify-center
-                     bg-black/40 opacity-0 group-hover:opacity-100
-                     transition-opacity duration-200 rounded-lg cursor-pointer"
-              onclick="event.stopPropagation()">
-              <div
-                class="w-12 h-12 bg-white rounded-full
-                       flex items-center justify-center transition hover:scale-110">
-                <i class="fas fa-play text-gray-900 text-sm ml-0.5 cursor-pointer"></i>
+    return new Promise((resolve) => {
+      const container = document.querySelector("#today-hits-container");
+      if (!container) return resolve();
+      container.innerHTML = "";
+      if (this.playlists.length === 0) return resolve();
+      let loadedImages = 0;
+      const checkAllLoaded = () => {
+        loadedImages++;
+        if (loadedImages === this.playlists.length) resolve();
+      };
+      this.playlists.forEach((playlist) => {
+        const card = document.createElement("div");
+        card.className = "flex-shrink-0 w-64";
+        card.innerHTML = `
+          <div class="group cursor-pointer">
+            <div class="relative">
+              <img src="${playlist.thumbnails?.[0] ?? ""}"
+                   class="w-full aspect-square rounded-lg object-cover"/>
+              <div class="absolute inset-0 bg-black/40 opacity-0
+                          group-hover:opacity-100 transition
+                          flex items-center justify-center rounded-lg">
+                <div class="w-12 h-12 bg-white rounded-full
+                            flex items-center justify-center">
+                  <i class="fas fa-play text-gray-900 ml-0.5"></i>
+                </div>
               </div>
-            </button>
+            </div>
+            <h3 class="mt-3 text-white truncate">${playlist.title}</h3>
+            <p class="text-gray-400 text-sm truncate">
+              ${playlist.artists?.join(", ") ?? ""}
+            </p>
           </div>
-          <h3 class="mt-3 text-white truncate">
-            ${playlist.title}
-          </h3>
-          <p class="text-gray-400 text-sm truncate">
-            ${playlist.artists?.join(", ") ?? ""}
-          </p>
-        </div>
-      `;
-
-      const playlistCard = card.querySelector('[data-playlist-slug]');
-      const playBtn = card.querySelector('.playlist-play-btn');
-      if (playlistCard) {
-        playlistCard.addEventListener('click', (e) => {
-          if (e.target.closest('.playlist-play-btn')) return;
-          this.navigateToPlaylist(playlist);
-        });
-      }
-      if (playBtn) {
-        playBtn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          this.navigateToPlaylist(playlist);
-        });
-      }
-      container.appendChild(card);
+        `;
+        card.onclick = () => this.navigateToPlaylist(playlist);
+        const img = card.querySelector("img");
+        if (img) img.onload = img.onerror = checkAllLoaded;
+        container.appendChild(card);
+      });
+      if (this.playlists.every((p) => !p.thumbnails?.[0])) resolve();
     });
   },
 
   updateNavigation() {
-    document
-      .querySelector("#today-hits-prev")
-      ?.toggleAttribute("disabled", this.currentIndex === 0);
-    document
-      .querySelector("#today-hits-next")
-      ?.toggleAttribute(
-        "disabled",
-        this.currentIndex >= this.playlists.length - this.ITEMS_PER_VIEW
-      );
+    const maxIndex = this.getMaxIndex();
+    const prev = document.querySelector("#today-hits-prev");
+    const next = document.querySelector("#today-hits-next");
+    if (!prev || !next) return;
+    prev.disabled = this.currentIndex === 0;
+    next.disabled = this.currentIndex >= maxIndex;
+    prev.style.opacity = prev.disabled ? "0.4" : "1";
+    next.style.opacity = next.disabled ? "0.4" : "1";
   },
 
   slide(dir) {
-    const maxIndex = this.playlists.length - this.ITEMS_PER_VIEW;
+    const maxIndex = this.getMaxIndex();
     if (dir === "next" && this.currentIndex < maxIndex) this.currentIndex++;
     if (dir === "prev" && this.currentIndex > 0) this.currentIndex--;
-    document.querySelector(
-      "#today-hits-container"
-    ).style.transform = `translateX(-${this.currentIndex * this.CARD_WIDTH}px)`;
+    this.updateSlide();
+  },
+
+  updateSlide() {
+    const container = document.querySelector("#today-hits-container");
+    if (!container) return;
+    const metrics = this.getCarouselMetrics();
+    const maxIndex = this.getMaxIndex();
+    this.currentIndex = Math.max(0, Math.min(this.currentIndex, maxIndex));
+    const translateX =
+      this.currentIndex === maxIndex && this.playlists.length > metrics.itemsPerView
+        ? metrics.totalWidth - metrics.viewportWidth
+        : this.currentIndex * metrics.cardWidth;
+    container.style.transform = `translateX(-${translateX}px)`;
     this.updateNavigation();
     this.updateScrollbar();
   },
 
   scrollToPosition(percent) {
-    const maxIndex = this.playlists.length - this.ITEMS_PER_VIEW;
+    const maxIndex = this.getMaxIndex();
     this.currentIndex = Math.round(percent * maxIndex);
-    this.currentIndex = Math.max(0, Math.min(this.currentIndex, maxIndex));
-    document.querySelector(
-      "#today-hits-container"
-    ).style.transform = `translateX(-${this.currentIndex * this.CARD_WIDTH}px)`;
-    this.updateNavigation();
-    this.updateScrollbar();
+    this.updateSlide();
   },
 
   setupEventListeners() {
-    const prev = document.querySelector("#today-hits-prev");
-    const next = document.querySelector("#today-hits-next");
+    document.querySelector("#today-hits-prev")?.addEventListener("click", () => this.slide("prev"));
+    document.querySelector("#today-hits-next")?.addEventListener("click", () => this.slide("next"));
     const track = document.querySelector("#today-hits-scrollbar-track");
     const thumb = document.querySelector("#today-hits-scrollbar-thumb");
-    prev?.addEventListener("click", () => this.slide("prev"));
-    next?.addEventListener("click", () => this.slide("next"));
     track?.addEventListener("click", (e) => {
-      if (e.target !== track) return;
       const rect = track.getBoundingClientRect();
       this.scrollToPosition((e.clientX - rect.left) / rect.width);
     });
-    let startX = 0;
-    let startLeft = 0;
+    let startX = 0, startLeft = 0;
     thumb?.addEventListener("mousedown", (e) => {
       this.isDragging = true;
       startX = e.clientX;
       startLeft = thumb.offsetLeft;
-      document.body.style.cursor = "pointer";
       e.preventDefault();
     });
+
     document.addEventListener("mousemove", (e) => {
       if (!this.isDragging) return;
       const rect = track.getBoundingClientRect();
-      const percent = (startLeft + e.clientX - startX) / rect.width;
+      const thumbWidth = thumb.offsetWidth;
+      const maxLeft = rect.width - thumbWidth;
+      const newLeft = Math.max(0, Math.min(startLeft + e.clientX - startX, maxLeft));
+      const percent = newLeft / maxLeft;
       this.scrollToPosition(percent);
     });
+
     document.addEventListener("mouseup", () => {
       this.isDragging = false;
-      document.body.style.cursor = "";
     });
+    window.addEventListener("resize", () => this.updateSlide());
   },
 
-  init() {
+  init(options = {}) {
+    this.hideInternalLoading = options.hideLoading === true;
+    this.hideScrollbar();
+    if (this.hideInternalLoading) {
+      this.hideLoading();
+    }
     this.setupEventListeners();
     return this.fetchPlaylists();
   },

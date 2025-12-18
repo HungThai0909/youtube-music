@@ -5,16 +5,12 @@ import { QuickPickSection } from "./components/sections/home/QuickPickSection";
 import { AlbumSection } from "./components/sections/home/AlbumSection";
 import { TodayHitSection } from "./components/sections/home/TodayHitsSection";
 import { VMusicSection } from "./components/sections/home/VMusicSection";
-import {
-  PlaylistDetail,
-  setPlaylistDetailRouter,
-} from "./pages/PlaylistDetails";
+import { PlaylistDetail, setPlaylistDetailRouter } from "./pages/PlaylistDetails";
 import { MoodDetail, setMoodDetailRouter } from "./pages/MoodDetails";
 import { AlbumDetail, setAlbumDetailRouter } from "./pages/AlbumDetails";
 import Navigo from "navigo";
 
 const router = new Navigo("/");
-
 MoodsSection.setRouter(router);
 QuickPickSection.setRouter(router);
 AlbumSection.setRouter(router);

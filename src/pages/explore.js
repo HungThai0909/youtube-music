@@ -10,7 +10,7 @@ export const explore = () => {
   const app = document.querySelector("#app");
   const html = `
     <div id="global-loading-overlay"
-      class="fixed inset-0 z-[100] bg-black flex items-center justify-center
+      class="fixed inset-0 z-[100] bg-black/60 flex items-center justify-center
              transition-opacity duration-500">
       <div class="w-16 h-16 border-4 border-gray-700
                   border-t-white rounded-full animate-spin"></div>
@@ -21,7 +21,7 @@ export const explore = () => {
 
       <main class="flex-1 bg-gray-900 overflow-y-auto
                    h-[calc(100vh-64px)]">
-        <div class="px-12 py-8 max-w-[1800px] mx-auto">
+        <div class="px-6 py-8 max-w-[1800px] mx-auto">
           <div class="pl-24">
             <section class="mb-24 mt-12">${CategorySection.render()}</section>
             <section class="mb-24">${AlbumSection.render()}</section>
@@ -34,7 +34,6 @@ export const explore = () => {
   `;
 
   app.innerHTML = html;
-
   setTimeout(async () => {
     try {
       await Promise.all([

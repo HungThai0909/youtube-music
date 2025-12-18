@@ -1,13 +1,11 @@
 export const MetaSection = {
   API_URL: `${import.meta.env.VITE_BASE_URL}/explore/meta`,
-
   ITEMS_PER_COLUMN: 4,
-  COLUMN_WIDTH: 280,
-
   currentIndex: 0,
   columns: [],
+  isDragging: false,
   router: null,
-
+  hideInternalLoading: false,
   setRouter(routerInstance) {
     this.router = routerInstance;
   },
@@ -16,7 +14,7 @@ export const MetaSection = {
     return `
       <section class="mb-12">
         <div class="flex items-center justify-between mb-6">
-          <h2 class="text-3xl font-bold text-white">
+          <h2 class="text-5xl font-bold text-white">
             Tâm trạng và thể loại
           </h2>
           <div class="flex gap-3">
@@ -32,28 +30,69 @@ export const MetaSection = {
             </button>
           </div>
         </div>
-        <div class="relative overflow-hidden">
+        <div class="relative overflow-hidden" id="meta-viewport">
           <div id="meta-container"
             class="flex gap-6 transition-transform duration-500 ease-in-out">
+            ${Array(5).fill('').map(() => `
+              <div class="flex-shrink-0 w-[280px] space-y-3 opacity-0">
+                ${Array(4).fill('').map(() => `
+                  <div class="h-[72px] bg-gray-800 rounded-xl"></div>
+                `).join('')}
+              </div>
+            `).join('')}
           </div>
         </div>
         <div id="meta-scrollbar-track"
-          class="mt-4 h-1 bg-white/10 rounded-full relative">
+          class="mt-4 h-1 bg-white/10 rounded-full relative cursor-pointer hidden">
           <div id="meta-scrollbar-thumb"
-            class="absolute h-1 bg-white/40 rounded-full transition-all duration-300"
-            style="width:20%">
+            class="absolute top-1/2 -translate-y-1/2
+                   h-1 bg-white/40 rounded-full
+                   transition-all duration-300 cursor-pointer w-1/5 left-0">
           </div>
         </div>
         <div id="meta-loading"
-          class="text-white py-10 text-center">
+          class="hidden text-white py-10 text-center">
           <i class="fas fa-spinner fa-spin text-3xl"></i>
         </div>
         <div id="meta-error"
-          class="hidden text-center text-red-400 py-8">
+          class="hidden text-center text-white py-8">
           Không thể tải dữ liệu
         </div>
       </section>
     `;
+  },
+
+  hideScrollbar() {
+    document.querySelector("#meta-scrollbar-track")?.classList.add("hidden");
+  },
+
+  showScrollbar() {
+    document.querySelector("#meta-scrollbar-track")?.classList.remove("hidden");
+  },
+
+  getCarouselMetrics() {
+    const viewport = document.querySelector("#meta-viewport");
+    const container = document.querySelector("#meta-container");
+    const firstColumn = container?.querySelector(".flex-shrink-0");
+    if (!viewport || !container) {
+      return { columnWidth: 280, itemsPerView: 5, viewportWidth: 1400, totalWidth: 0 };
+    }
+    const viewportWidth = viewport.offsetWidth;
+    const gap = parseFloat(getComputedStyle(container).gap) || 24;
+    const columnWidth = firstColumn ? firstColumn.offsetWidth : 280;
+    const columnWithGap = columnWidth + gap;
+    const itemsPerView = Math.floor(viewportWidth / columnWithGap);
+    return {
+      columnWidth: columnWithGap,
+      itemsPerView,
+      viewportWidth,
+      totalWidth: container.scrollWidth,
+    };
+  },
+
+  getMaxIndex() {
+    const metrics = this.getCarouselMetrics();
+    return Math.max(0, this.columns.length - metrics.itemsPerView);
   },
 
   async fetchMeta() {
@@ -63,13 +102,24 @@ export const MetaSection = {
       const data = await res.json();
       const metas = [...(data.categories ?? []), ...(data.lines ?? [])];
       this.columns = this.chunk(metas, this.ITEMS_PER_COLUMN);
-      this.hideLoading();
+      this.hideError();
       this.renderColumns();
-      this.updateScrollbar();
-      this.updateNavigation();
-    } catch (e) {
-      console.error(e);
+      requestAnimationFrame(() => {
+        this.updateNavigation();
+        this.updateScrollbar();
+        if (this.hideInternalLoading) {
+          this.hideInternalLoading = false;
+          const metrics = this.getCarouselMetrics();
+          if (this.columns.length > metrics.itemsPerView) {
+            this.showScrollbar();
+          }
+        }
+      });
+      return true;
+    } catch (err) {
+      console.error(err);
       this.showError();
+      return false;
     }
   },
 
@@ -83,6 +133,7 @@ export const MetaSection = {
 
   renderColumns() {
     const container = document.querySelector("#meta-container");
+    if (!container) return;
     container.innerHTML = "";
     this.columns.forEach((column) => {
       const colEl = document.createElement("div");
@@ -106,39 +157,122 @@ export const MetaSection = {
   },
 
   slide(dir) {
-    const maxIndex = this.columns.length - 1;
-    if (dir === "next" && this.currentIndex < maxIndex) this.currentIndex++;
-    if (dir === "prev" && this.currentIndex > 0) this.currentIndex--;
-    document.querySelector("#meta-container").style.transform = `translateX(-${
-      this.currentIndex * this.COLUMN_WIDTH
-    }px)`;
+    const maxIndex = this.getMaxIndex();
+    if (dir === "next" && this.currentIndex < maxIndex) {
+      this.currentIndex++;
+    }
+    if (dir === "prev" && this.currentIndex > 0) {
+      this.currentIndex--;
+    }
+    this.updateSlide();
+  },
+
+  updateSlide() {
+    const container = document.querySelector("#meta-container");
+    if (!container) return;
+    const maxIndex = this.getMaxIndex();
+    const metrics = this.getCarouselMetrics();
+    this.currentIndex = Math.max(0, Math.min(this.currentIndex, maxIndex));
+    const translateX = this.currentIndex === maxIndex && this.columns.length > metrics.itemsPerView
+      ? metrics.totalWidth - metrics.viewportWidth
+      : this.currentIndex * metrics.columnWidth;
+    container.style.transform = `translateX(-${translateX}px)`;
     this.updateNavigation();
     this.updateScrollbar();
   },
 
   updateNavigation() {
-    document
-      .querySelector("#meta-prev")
-      ?.toggleAttribute("disabled", this.currentIndex === 0);
-    document
-      .querySelector("#meta-next")
-      ?.toggleAttribute(
-        "disabled",
-        this.currentIndex >= this.columns.length - 1
-      );
+    const maxIndex = this.getMaxIndex();
+    const prevBtn = document.querySelector("#meta-prev");
+    const nextBtn = document.querySelector("#meta-next");
+    if (!prevBtn || !nextBtn) return;
+    const isAtStart = this.currentIndex === 0;
+    const isAtEnd = this.currentIndex >= maxIndex;
+    prevBtn.disabled = isAtStart;
+    prevBtn.style.opacity = isAtStart ? "0.5" : "1";
+    prevBtn.style.pointerEvents = isAtStart ? "none" : "auto";
+    nextBtn.disabled = isAtEnd;
+    nextBtn.style.opacity = isAtEnd ? "0.5" : "1";
+    nextBtn.style.pointerEvents = isAtEnd ? "none" : "auto";
   },
 
   updateScrollbar() {
+    const track = document.querySelector("#meta-scrollbar-track");
     const thumb = document.querySelector("#meta-scrollbar-thumb");
-    if (!thumb) return;
-    const ratio = 1 / this.columns.length;
-    const progress = this.currentIndex / (this.columns.length - 1 || 1);
-    thumb.style.width = `${Math.max(ratio * 100, 10)}%`;
-    thumb.style.left = `${progress * (100 - ratio * 100)}%`;
+    if (!track || !thumb || !this.columns.length) {
+      this.hideScrollbar();
+      return;
+    }
+    const metrics = this.getCarouselMetrics();
+    const maxIndex = this.getMaxIndex();
+    if (this.columns.length <= metrics.itemsPerView) {
+      this.hideScrollbar();
+      return;
+    }
+    this.showScrollbar();
+    const visibleRatio = metrics.itemsPerView / this.columns.length;
+    const thumbWidth = Math.max(visibleRatio * 100, 10);
+    const progress = maxIndex > 0 ? this.currentIndex / maxIndex : 0;
+    thumb.style.width = `${thumbWidth}%`;
+    thumb.style.left = `${progress * (100 - thumbWidth)}%`;
   },
 
-  navigateToMeta(item) {
-    this.router?.navigate(`/explore?meta=${item.slug}`);
+  scrollToPosition(percent) {
+    const maxIndex = this.getMaxIndex();
+    this.currentIndex = Math.round(percent * maxIndex);
+    this.currentIndex = Math.max(0, Math.min(this.currentIndex, maxIndex));
+    this.updateSlide();
+  },
+
+  setupEventListeners() {
+    const prev = document.querySelector("#meta-prev");
+    const next = document.querySelector("#meta-next");
+    const track = document.querySelector("#meta-scrollbar-track");
+    const thumb = document.querySelector("#meta-scrollbar-thumb");
+    prev?.addEventListener("click", () => this.slide("prev"));
+    next?.addEventListener("click", () => this.slide("next"));
+    track?.addEventListener("click", (e) => {
+      const rect = track.getBoundingClientRect();
+      this.scrollToPosition((e.clientX - rect.left) / rect.width);
+    });
+    let startX = 0, startLeft = 0;
+    thumb?.addEventListener("mousedown", (e) => {
+      this.isDragging = true;
+      startX = e.clientX;
+      startLeft = thumb.offsetLeft;
+      e.preventDefault();
+    });
+    
+    document.addEventListener("mousemove", (e) => {
+      if (!this.isDragging) return;
+      const rect = track.getBoundingClientRect();
+      const thumbWidth = thumb.offsetWidth;
+      const maxLeft = rect.width - thumbWidth;
+      const newLeft = Math.max(0, Math.min(startLeft + e.clientX - startX, maxLeft));
+      const percent = newLeft / maxLeft;
+      this.scrollToPosition(percent);
+    });
+    
+    document.addEventListener("mouseup", () => {
+      this.isDragging = false;
+    });
+    let resizeTimeout;
+    window.addEventListener("resize", () => {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(() => {
+        this.updateSlide();
+      }, 150);
+    });
+  },
+
+  init(options = {}) {
+    this.hideInternalLoading = options.hideLoading === true;
+    this.hideScrollbar();
+    if (this.hideInternalLoading) {
+      this.hideLoading();
+    }
+    this.setupEventListeners();
+    return this.fetchMeta();
   },
 
   hideLoading() {
@@ -150,15 +284,11 @@ export const MetaSection = {
     document.querySelector("#meta-error")?.classList.remove("hidden");
   },
 
-  init() {
-    document
-      .querySelector("#meta-prev")
-      ?.addEventListener("click", () => this.slide("prev"));
+  hideError() {
+    document.querySelector("#meta-error")?.classList.add("hidden");
+  },
 
-    document
-      .querySelector("#meta-next")
-      ?.addEventListener("click", () => this.slide("next"));
-
-    return this.fetchMeta();
+  navigateToMeta(item) {
+    this.router?.navigate(`/explore?meta=${item.slug}`);
   },
 };

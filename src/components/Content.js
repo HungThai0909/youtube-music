@@ -6,7 +6,7 @@ import { VMusicSection } from "./sections/home/VMusicSection";
 
 export const Content = () => {
   const html = `
-    <div id="global-loading-overlay" class="fixed inset-0 z-[100] bg-black flex flex-col items-center justify-center transition-opacity duration-500">
+    <div id="global-loading-overlay" class="fixed inset-0 z-[100] bg-black/60 flex flex-col items-center justify-center transition-opacity duration-500">
       <div class="relative">
         <div class="w-16 h-16 border-4 border-gray-700 border-t-white rounded-full animate-spin"></div>
       </div>
@@ -15,7 +15,7 @@ export const Content = () => {
       <div class="px-6 py-8">
         <div class="pl-24">
           <section>${MoodsSection.render()}</section>  
-          <section>${QuickPickSection.render()}</section>
+          <section>${QuickPickSection.render()}</section>        
           <section>${AlbumSection.render()}</section>
           <section>${TodayHitSection.render()}</section>
           <section>${VMusicSection.render()}</section>
@@ -27,11 +27,11 @@ export const Content = () => {
   setTimeout(async () => {
     try {
       await Promise.all([
-        MoodsSection.init(),
-        QuickPickSection.init(),
-        AlbumSection.init(),
-        TodayHitSection.init(),
-        VMusicSection.init(),
+        MoodsSection.init(null, { hideLoading: true }),
+        QuickPickSection.init(null, { hideLoading: true }), 
+        AlbumSection.init({ hideLoading: true }),
+        TodayHitSection.init({ hideLoading: true }),
+        VMusicSection.init({ hideLoading: true }),
       ]);
       const overlay = document.querySelector("#global-loading-overlay");
       if (overlay) {

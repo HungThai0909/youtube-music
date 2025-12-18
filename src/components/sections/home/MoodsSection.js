@@ -1,147 +1,282 @@
 export const MoodsSection = {
   API_URL: `${import.meta.env.VITE_BASE_URL}/moods`,
-  ITEMS_PER_VIEW: 5,
-  CARD_WIDTH: 208,
   currentIndex: 0,
   moods: [],
+  isDragging: false,
   router: null,
   activeMoodSlug: null,
+  hideInternalLoading: false,
   setRouter(routerInstance) {
     this.router = routerInstance;
   },
-
   render() {
     return `
-      <section class="mb-10">
+      <section class="mb-10"> 
         <div class="flex justify-end gap-4 mb-6">
-          <button id="moods-prev" class="w-10 h-10 rounded-full bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white transition-all duration-300 flex items-center justify-center cursor-pointer">
+          <button id="moods-prev"
+            class="w-10 h-10 rounded-full bg-gray-800 hover:bg-gray-700
+                   text-gray-400 hover:text-white transition-all
+                   flex items-center justify-center cursor-pointer
+                   opacity-50"
+            disabled>
             <i class="fas fa-chevron-left"></i>
           </button>
-          <button id="moods-next" class="w-10 h-10 rounded-full bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white transition-all duration-300 flex items-center justify-center cursor-pointer">
+          <button id="moods-next"
+            class="w-10 h-10 rounded-full bg-gray-800 hover:bg-gray-700
+                   text-gray-400 hover:text-white transition-all
+                   flex items-center justify-center cursor-pointer
+                   opacity-50"
+            disabled>
             <i class="fas fa-chevron-right"></i>
           </button>
         </div>
-        <div class="relative overflow-hidden">
+        <div class="relative overflow-hidden h-12" id="moods-viewport" >
           <div id="moods-container" class="flex gap-4 transition-transform duration-500 ease-in-out">
+            ${Array(8)
+              .fill("")
+              .map(
+                () => `
+              <div class="flex-shrink-0 opacity-0">
+                <button class="px-4 py-3 rounded-lg border bg-gray-800 border-gray-800"></button>
+              </div>
+            `
+              )
+              .join("")}
           </div>
         </div>
-        <div id="moods-loading" class="text-white py-4 text-center">
-          <i class="fas fa-spinner fa-spin text-3xl"></i>
-          <p class="mt-2">Đang tải...</p>
+        <div class="h-5 mt-4">
+          <div id="moods-scrollbar-track"
+            class="h-1 bg-gray-700 rounded-full relative cursor-pointer hidden">
+            <div id="moods-scrollbar-thumb"
+              class="absolute top-1/2 -translate-y-1/2
+                     h-1 bg-gray-400 rounded-full
+                     transition-all duration-300 w-1/5 left-0">
+            </div>
+          </div>
         </div>
-        <div id="moods-error" class="hidden text-center text-red-400 py-8">
-          <i class="fas fa-exclamation-circle text-3xl"></i>
-          <p class="mt-2">Không thể tải dữ liệu</p>
+        <div id="moods-loading" class="hidden text-white py-4 text-center">
+          <i class="fas fa-spinner fa-spin text-3xl"></i>
+        </div>
+        <div id="moods-error" class="hidden text-center text-white py-8">
+          Không thể tải dữ liệu
         </div>
       </section>
     `;
   },
 
+  hideScrollbar() {
+    document.querySelector("#moods-scrollbar-track")?.classList.add("hidden");
+  },
+  showScrollbar() {
+    document
+      .querySelector("#moods-scrollbar-track")
+      ?.classList.remove("hidden");
+  },
+  hideLoading() {
+    document.querySelector("#moods-loading")?.classList.add("hidden");
+  },
+  showLoading() {
+    document.querySelector("#moods-loading")?.classList.remove("hidden");
+  },
+  showError() {
+    this.hideLoading();
+    document.querySelector("#moods-error")?.classList.remove("hidden");
+  },
+  hideError() {
+    document.querySelector("#moods-error")?.classList.add("hidden");
+  },
+
+  getCarouselMetrics() {
+    const viewport = document.querySelector("#moods-viewport");
+    const container = document.querySelector("#moods-container");
+    const firstCard = container?.querySelector(".mood-card");
+    if (!viewport || !container)
+      return {
+        cardWidth: 224,
+        itemsPerView: 5,
+        viewportWidth: 1120,
+        totalWidth: 0,
+      };
+    const viewportWidth = viewport.offsetWidth;
+    const gap = parseFloat(getComputedStyle(container).gap) || 16;
+    const cardWidth = firstCard ? firstCard.offsetWidth : 208;
+    const cardWithGap = cardWidth + gap;
+    const itemsPerView = Math.floor(viewportWidth / cardWithGap);
+    return {
+      cardWidth: cardWithGap,
+      itemsPerView,
+      viewportWidth,
+      totalWidth: container.scrollWidth,
+    };
+  },
+
+  getMaxIndex() {
+    const metrics = this.getCarouselMetrics();
+    return Math.max(0, this.moods.length - metrics.itemsPerView);
+  },
+
   async fetchMoods() {
     try {
-      const response = await fetch(this.API_URL);
-      if (!response.ok) throw new Error("Network response was not ok");
-      const data = await response.json();
+      if (this.hideInternalLoading) {
+        this.hideLoading();
+      }
+      const res = await fetch(this.API_URL);
+      if (!res.ok) throw new Error("Fetch error");
+      const data = await res.json();
       this.moods = data.items || [];
-      this.hideLoading();
-      this.renderMoods();
-      this.updateNavigation();
-      return true;
-    } catch (error) {
-      console.error("Error fetching moods:", error);
+      this.hideError();
+      await this.renderMoodsAsync();
+      requestAnimationFrame(() => {
+        this.updateNavigation();
+        this.updateScrollbar();
+      });
+    } catch (err) {
+      console.error(err);
       this.showError();
-      return false;
     }
   },
 
-  hideLoading() {
-    const loadingEl = document.querySelector("#moods-loading");
-    if (loadingEl) loadingEl.classList.add("hidden");
-  },
-
-  showError() {
-    const loadingEl = document.querySelector("#moods-loading");
-    const errorEl = document.querySelector("#moods-error");
-    if (loadingEl) loadingEl.classList.add("hidden");
-    if (errorEl) errorEl.classList.remove("hidden");
-  },
-
-  renderMoods() {
-    const container = document.querySelector("#moods-container");
-    if (!container) return;
-    container.innerHTML = "";
-    this.moods.forEach((mood) => {
-      const moodCard = document.createElement("div");
-      moodCard.className = "flex-shrink-0";
-      const isActive = this.activeMoodSlug === mood.slug;
-      const activeClasses = isActive
-        ? "bg-white text-gray-900 border-white font-semibold"
-        : "bg-gray-800 hover:bg-gray-700 text-white border-gray-800";
-      moodCard.innerHTML = `
-        <button
-          class="mood-btn px-3 py-3 ${activeClasses} rounded-lg transition-all duration-300 transform border cursor-pointer"
-          data-mood-slug="${mood.slug}">
-          ${mood.name}
-        </button>
-      `;
-      container.appendChild(moodCard);
-    });
-
-    this.setupMoodButtonListeners();
-  },
-
-  setupMoodButtonListeners() {
-    const moodButtons = document.querySelectorAll(".mood-btn");
-    moodButtons.forEach((btn) => {
-      btn.addEventListener("click", (e) => {
-        const moodSlug = e.currentTarget.dataset.moodSlug;
-        if (this.router) {
-          this.router.navigate(`/mood/${moodSlug}`);
-        }
+  renderMoodsAsync() {
+    return new Promise((resolve) => {
+      const container = document.querySelector("#moods-container");
+      if (!container) return resolve();
+      container.innerHTML = "";
+      if (this.moods.length === 0) return resolve();
+      let loadedCount = 0;
+      this.moods.forEach((mood) => {
+        const card = document.createElement("div");
+        card.className = "flex-shrink-0 mood-card";
+        const active = this.activeMoodSlug === mood.slug;
+        card.innerHTML = `
+          <button class="px-4 py-3 rounded-lg border transition-all cursor-pointer
+            ${
+              active
+                ? "bg-white text-gray-900 border-white font-semibold"
+                : "bg-gray-800 text-white border-gray-800 hover:bg-gray-700"
+            }"
+            data-mood="${mood.slug}">
+            ${mood.name}
+          </button>
+        `;
+        card.querySelector("button").addEventListener("click", () => {
+          this.router?.navigate(`/mood/${mood.slug}`);
+        });
+        container.appendChild(card);
+        loadedCount++;
+        if (loadedCount === this.moods.length) resolve();
       });
     });
   },
 
+  slide(dir) {
+    const maxIndex = this.getMaxIndex();
+    if (dir === "next" && this.currentIndex < maxIndex) this.currentIndex++;
+    if (dir === "prev" && this.currentIndex > 0) this.currentIndex--;
+    this.updateSlide();
+  },
+
+  updateSlide() {
+    const container = document.querySelector("#moods-container");
+    if (!container) return;
+    const metrics = this.getCarouselMetrics();
+    const maxIndex = this.getMaxIndex();
+    this.currentIndex = Math.max(0, Math.min(this.currentIndex, maxIndex));
+    const translateX =
+      this.currentIndex === maxIndex && this.moods.length > metrics.itemsPerView
+        ? metrics.totalWidth - metrics.viewportWidth
+        : this.currentIndex * metrics.cardWidth;
+    container.style.transform = `translateX(-${translateX}px)`;
+    this.updateNavigation();
+    this.updateScrollbar();
+  },
+
   updateNavigation() {
+    const maxIndex = this.getMaxIndex();
     const prevBtn = document.querySelector("#moods-prev");
     const nextBtn = document.querySelector("#moods-next");
     if (!prevBtn || !nextBtn) return;
-    prevBtn.dataset.disabled = this.currentIndex === 0;
-    nextBtn.dataset.disabled =
-      this.currentIndex >= this.moods.length - this.ITEMS_PER_VIEW;
+    if (this.hideInternalLoading) return;
+    prevBtn.disabled = this.currentIndex === 0;
+    nextBtn.disabled = this.currentIndex >= maxIndex;
+    if (prevBtn.disabled) {
+      prevBtn.classList.add("opacity-40");
+    } else {
+      prevBtn.classList.remove("opacity-40");
+    }
+    if (nextBtn.disabled) {
+      nextBtn.classList.add("opacity-40");
+    } else {
+      nextBtn.classList.remove("opacity-40");
+    }
   },
 
-  slide(direction) {
-    const container = document.querySelector("#moods-container");
-    if (!container) return;
-    if (
-      direction === "next" &&
-      this.currentIndex < this.moods.length - this.ITEMS_PER_VIEW
-    ) {
-      this.currentIndex++;
-    } else if (direction === "prev" && this.currentIndex > 0) {
-      this.currentIndex--;
+  updateScrollbar() {
+    const track = document.querySelector("#moods-scrollbar-track");
+    const thumb = document.querySelector("#moods-scrollbar-thumb");
+    if (!track || !thumb || this.moods.length === 0) {
+      this.hideScrollbar();
+      return;
     }
-    container.style.transform = `translateX(-${
-      this.currentIndex * this.CARD_WIDTH
-    }px)`;
-    this.updateNavigation();
+    const metrics = this.getCarouselMetrics();
+    const maxIndex = this.getMaxIndex();
+    if (this.moods.length <= metrics.itemsPerView) {
+      this.hideScrollbar();
+      return;
+    }
+    this.showScrollbar();
+    const ratio = metrics.itemsPerView / this.moods.length;
+    const width = Math.max(ratio * 100, 10);
+    const progress = maxIndex ? this.currentIndex / maxIndex : 0;
+    thumb.style.width = `${width}%`;
+    thumb.style.left = `${progress * (100 - width)}%`;
+  },
+
+  scrollToPosition(percent) {
+    const maxIndex = this.getMaxIndex();
+    this.currentIndex = Math.round(percent * maxIndex);
+    this.updateSlide();
   },
 
   setupEventListeners() {
-    const prevBtn = document.querySelector("#moods-prev");
-    const nextBtn = document.querySelector("#moods-next");
-    if (prevBtn) prevBtn.addEventListener("click", () => this.slide("prev"));
-    if (nextBtn) nextBtn.addEventListener("click", () => this.slide("next"));
-    document.addEventListener("keydown", (e) => {
-      if (e.key === "ArrowLeft") this.slide("prev");
-      if (e.key === "ArrowRight") this.slide("next");
+    const prev = document.querySelector("#moods-prev");
+    const next = document.querySelector("#moods-next");
+    const track = document.querySelector("#moods-scrollbar-track");
+    const thumb = document.querySelector("#moods-scrollbar-thumb");
+    prev?.addEventListener("click", () => this.slide("prev"));
+    next?.addEventListener("click", () => this.slide("next"));
+    track?.addEventListener("click", (e) => {
+      const rect = track.getBoundingClientRect();
+      this.scrollToPosition((e.clientX - rect.left) / rect.width);
     });
+    let startX = 0,
+      startLeft = 0;
+    thumb?.addEventListener("mousedown", (e) => {
+      this.isDragging = true;
+      startX = e.clientX;
+      startLeft = thumb.offsetLeft;
+      e.preventDefault();
+    });
+
+    document.addEventListener("mousemove", (e) => {
+      if (!this.isDragging) return;
+      const rect = track.getBoundingClientRect();
+      this.scrollToPosition((startLeft + e.clientX - startX) / rect.width);
+    });
+
+    document.addEventListener("mouseup", () => {
+      this.isDragging = false;
+    });
+    window.addEventListener("resize", () => this.updateSlide());
   },
 
-  init(activeMoodSlug = null) {
+  init(activeMoodSlug = null, options = {}) {
     this.activeMoodSlug = activeMoodSlug;
     this.currentIndex = 0;
+    this.hideInternalLoading = options.hideLoading === true;
+    this.hideScrollbar();
+    if (this.hideInternalLoading) {
+      this.hideLoading();
+    }
     this.setupEventListeners();
     return this.fetchMoods();
   },
