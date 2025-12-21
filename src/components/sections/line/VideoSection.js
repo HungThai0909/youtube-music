@@ -1,35 +1,36 @@
-export const VideoSection = {
-  API_URL: `${import.meta.env.VITE_BASE_URL}/explore/videos`,
+export const LineVideoSection = {
   currentIndex: 0,
   videos: [],
   isDragging: false,
   router: null,
+  lineSlug: null,
   hideInternalLoading: false,
   setRouter(routerInstance) {
     this.router = routerInstance;
+  },
+  setLineSlug(slug) {
+    this.lineSlug = slug;
   },
   render() {
     return `
       <section class="mb-12">
         <div class="flex items-center justify-between mb-6">
-          <h2 class="text-5xl font-bold text-white">
-            Video nhạc mới
-          </h2>
+          <h2 class="text-5xl font-bold text-white">Video nhạc</h2>
           <div class="flex gap-3">
-            <button id="videos-prev"
+            <button id="line-videos-prev"
               class="w-9 h-9 rounded-full bg-gray-800 hover:bg-gray-700
                      text-gray-400 hover:text-white flex items-center justify-center cursor-pointer">
               <i class="fas fa-chevron-left"></i>
             </button>
-            <button id="videos-next"
+            <button id="line-videos-next"
               class="w-9 h-9 rounded-full bg-gray-800 hover:bg-gray-700
                      text-gray-400 hover:text-white flex items-center justify-center cursor-pointer">
               <i class="fas fa-chevron-right"></i>
             </button>
           </div>
         </div>
-        <div class="relative overflow-hidden" id="videos-viewport">
-          <div id="videos-container"
+        <div class="relative overflow-hidden" id="line-videos-viewport">
+          <div id="line-videos-container"
             class="flex gap-6 transition-transform duration-500 ease-in-out">
             ${Array(5).fill('').map(() => `
               <div class="flex-shrink-0 w-80 opacity-0">
@@ -41,20 +42,20 @@ export const VideoSection = {
           </div>
         </div>
         <div class="h-5 mt-4">
-          <div id="videos-scrollbar-track"
+          <div id="line-videos-scrollbar-track"
             class="h-1 bg-white/10 rounded-full relative cursor-pointer hidden">
-            <div id="videos-scrollbar-thumb"
+            <div id="line-videos-scrollbar-thumb"
               class="absolute top-1/2 -translate-y-1/2
                      h-1 bg-white/40 rounded-full
                      transition-all duration-300 cursor-pointer w-1/5 left-0">
             </div>
           </div>
         </div>
-        <div id="videos-loading"
+        <div id="line-videos-loading"
           class="hidden text-white py-10 text-center">
           <i class="fas fa-spinner fa-spin text-3xl"></i>
         </div>
-        <div id="videos-error"
+        <div id="line-videos-error"
           class="hidden text-center text-white py-8">
           Không thể tải dữ liệu
         </div>
@@ -63,22 +64,22 @@ export const VideoSection = {
   },
 
   hideScrollbar() {
-    document.querySelector("#videos-scrollbar-track")?.classList.add("hidden");
+    document.querySelector("#line-videos-scrollbar-track")?.classList.add("hidden");
   },
 
   showScrollbar() {
-    document.querySelector("#videos-scrollbar-track")?.classList.remove("hidden");
+    document.querySelector("#line-videos-scrollbar-track")?.classList.remove("hidden");
   },
 
   getCarouselMetrics() {
-    const viewport = document.querySelector("#videos-viewport");
-    const container = document.querySelector("#videos-container");
+    const viewport = document.querySelector("#line-videos-viewport");
+    const container = document.querySelector("#line-videos-container");
     const firstCard = container?.querySelector(".w-80");
     if (!viewport || !container) {
       return { cardWidth: 320, itemsPerView: 5, viewportWidth: 1600, totalWidth: 0 };
     }
     const viewportWidth = viewport.offsetWidth;
-    const gap = parseFloat(getComputedStyle(container).gap) || 24; 
+    const gap = parseFloat(getComputedStyle(container).gap) || 24;
     const cardWidth = firstCard ? firstCard.offsetWidth : 320;
     const cardWithGap = cardWidth + gap;
     const itemsPerView = Math.floor(viewportWidth / cardWithGap);
@@ -97,7 +98,7 @@ export const VideoSection = {
 
   async fetchVideos() {
     try {
-      const res = await fetch(this.API_URL);
+      const res = await fetch(`${import.meta.env.VITE_BASE_URL}/lines/${this.lineSlug}/videos`);
       if (!res.ok) throw new Error("Fetch error");
       const data = await res.json();
       this.videos = data?.items ?? [];
@@ -126,21 +127,21 @@ export const VideoSection = {
   },
 
   hideLoading() {
-    document.querySelector("#videos-loading")?.classList.add("hidden");
+    document.querySelector("#line-videos-loading")?.classList.add("hidden");
   },
 
   showError() {
-    document.querySelector("#videos-loading")?.classList.add("hidden");
-    document.querySelector("#videos-error")?.classList.remove("hidden");
+    document.querySelector("#line-videos-loading")?.classList.add("hidden");
+    document.querySelector("#line-videos-error")?.classList.remove("hidden");
   },
 
   hideError() {
-    document.querySelector("#videos-error")?.classList.add("hidden");
+    document.querySelector("#line-videos-error")?.classList.add("hidden");
   },
 
   renderVideos() {
     return new Promise((resolve) => {
-      const container = document.querySelector("#videos-container");
+      const container = document.querySelector("#line-videos-container");
       if (!container) return resolve();
       container.innerHTML = "";
       if (this.videos.length === 0) return resolve();
@@ -155,9 +156,8 @@ export const VideoSection = {
         card.innerHTML = `
           <div class="group">
             <div class="relative">
-              <img
-                src="${video.thumb}"
-                class="w-full aspect-video rounded-xl object-cover transition"/>
+              <img src="${video.thumb || video.thumbnails?.[0] || ''}"
+                   class="w-full aspect-video rounded-xl object-cover transition"/>
               <div class="absolute inset-0 flex items-center justify-center
                           opacity-0 group-hover:opacity-100
                           bg-black/40 transition rounded-xl">
@@ -168,10 +168,10 @@ export const VideoSection = {
               </div>
             </div>
             <h3 class="mt-3 text-white font-semibold line-clamp-2">
-              ${video.name}
+              ${video.name || video.title}
             </h3>
             <p class="text-gray-400 text-sm">
-              ${video.views.toLocaleString()} lượt xem
+              ${video.views ? video.views.toLocaleString() + " lượt xem" : "Video"}
             </p>
           </div>
         `;
@@ -182,20 +182,20 @@ export const VideoSection = {
         if (img) img.onload = img.onerror = checkAllLoaded;
         container.appendChild(card);
       });
-      if (this.videos.every((v) => !v.thumb)) resolve();
+      if (this.videos.every((v) => !v.thumb && !v.thumbnails?.[0])) resolve();
     });
   },
 
   navigateToVideo(video) {
-    const slug = video.slug || video.id;
+    const slug = video.slug || video.id || video._id;
     if (!slug || !this.router) return;
     this.router.navigate(`/video/details/${slug}`);
   },
 
   updateNavigation() {
     const maxIndex = this.getMaxIndex();
-    const prevBtn = document.querySelector("#videos-prev");
-    const nextBtn = document.querySelector("#videos-next");
+    const prevBtn = document.querySelector("#line-videos-prev");
+    const nextBtn = document.querySelector("#line-videos-next");
     if (!prevBtn || !nextBtn) return;
     const isAtStart = this.currentIndex === 0;
     const isAtEnd = this.currentIndex >= maxIndex;
@@ -219,7 +219,7 @@ export const VideoSection = {
   },
 
   updateSlide() {
-    const container = document.querySelector("#videos-container");
+    const container = document.querySelector("#line-videos-container");
     if (!container) return;
     const maxIndex = this.getMaxIndex();
     const metrics = this.getCarouselMetrics();
@@ -233,8 +233,8 @@ export const VideoSection = {
   },
 
   updateScrollbar() {
-    const track = document.querySelector("#videos-scrollbar-track");
-    const thumb = document.querySelector("#videos-scrollbar-thumb");
+    const track = document.querySelector("#line-videos-scrollbar-track");
+    const thumb = document.querySelector("#line-videos-scrollbar-thumb");
     if (!track || !thumb || !this.videos.length) {
       this.hideScrollbar();
       return;
@@ -261,12 +261,12 @@ export const VideoSection = {
   },
 
   setupEventListeners() {
-    const prev = document.querySelector("#videos-prev");
-    const next = document.querySelector("#videos-next");
-    const track = document.querySelector("#videos-scrollbar-track");
-    const thumb = document.querySelector("#videos-scrollbar-thumb");
+    const prev = document.querySelector("#line-videos-prev");
+    const next = document.querySelector("#line-videos-next");
+    const track = document.querySelector("#line-videos-scrollbar-track");
+    const thumb = document.querySelector("#line-videos-scrollbar-thumb");
     prev?.addEventListener("click", () => this.slide("prev"));
-    next?.addEventListener("click", () => this.slide("next"));
+    next?.addEventListener("click", () => this.slide("next"));  
     track?.addEventListener("click", (e) => {
       const rect = track.getBoundingClientRect();
       this.scrollToPosition((e.clientX - rect.left) / rect.width);
@@ -278,7 +278,7 @@ export const VideoSection = {
       startLeft = thumb.offsetLeft;
       e.preventDefault();
     });
-
+    
     document.addEventListener("mousemove", (e) => {
       if (!this.isDragging) return;
       const rect = track.getBoundingClientRect();
@@ -288,10 +288,11 @@ export const VideoSection = {
       const percent = newLeft / maxLeft;
       this.scrollToPosition(percent);
     });
-
+    
     document.addEventListener("mouseup", () => {
       this.isDragging = false;
     });
+    
     let resizeTimeout;
     window.addEventListener("resize", () => {
       clearTimeout(resizeTimeout);

@@ -1,7 +1,7 @@
-export const VideoSection = {
-  API_URL: `${import.meta.env.VITE_BASE_URL}/explore/videos`,
+export const AlbumSection = {
+  API_URL: `${import.meta.env.VITE_BASE_URL}/explore/new-releases`,
   currentIndex: 0,
-  videos: [],
+  albums: [],
   isDragging: false,
   router: null,
   hideInternalLoading: false,
@@ -12,28 +12,26 @@ export const VideoSection = {
     return `
       <section class="mb-12">
         <div class="flex items-center justify-between mb-6">
-          <h2 class="text-5xl font-bold text-white">
-            Video nhạc mới
-          </h2>
+          <h2 class="text-5xl font-bold text-white">Bản phát hành mới</h2>
           <div class="flex gap-3">
-            <button id="videos-prev"
+            <button id="newrel-albums-prev"
               class="w-9 h-9 rounded-full bg-gray-800 hover:bg-gray-700
                      text-gray-400 hover:text-white flex items-center justify-center cursor-pointer">
               <i class="fas fa-chevron-left"></i>
             </button>
-            <button id="videos-next"
+            <button id="newrel-albums-next"
               class="w-9 h-9 rounded-full bg-gray-800 hover:bg-gray-700
                      text-gray-400 hover:text-white flex items-center justify-center cursor-pointer">
               <i class="fas fa-chevron-right"></i>
             </button>
           </div>
         </div>
-        <div class="relative overflow-hidden" id="videos-viewport">
-          <div id="videos-container"
+        <div class="relative overflow-hidden" id="newrel-albums-viewport">
+          <div id="newrel-albums-container"
             class="flex gap-6 transition-transform duration-500 ease-in-out">
             ${Array(5).fill('').map(() => `
-              <div class="flex-shrink-0 w-80 opacity-0">
-                <div class="w-full aspect-video rounded-xl bg-gray-800"></div>
+              <div class="flex-shrink-0 w-56 opacity-0">
+                <div class="w-full aspect-square rounded-lg bg-gray-800"></div>
                 <div class="mt-3 h-6 bg-gray-800 rounded w-3/4"></div>
                 <div class="mt-2 h-4 bg-gray-800 rounded w-1/2"></div>
               </div>
@@ -41,21 +39,18 @@ export const VideoSection = {
           </div>
         </div>
         <div class="h-5 mt-4">
-          <div id="videos-scrollbar-track"
+          <div id="newrel-albums-scrollbar-track"
             class="h-1 bg-white/10 rounded-full relative cursor-pointer hidden">
-            <div id="videos-scrollbar-thumb"
-              class="absolute top-1/2 -translate-y-1/2
-                     h-1 bg-white/40 rounded-full
+            <div id="newrel-albums-scrollbar-thumb"
+              class="absolute top-1/2 -translate-y-1/2 h-1 bg-white/40 rounded-full
                      transition-all duration-300 cursor-pointer w-1/5 left-0">
             </div>
           </div>
         </div>
-        <div id="videos-loading"
-          class="hidden text-white py-10 text-center">
+        <div id="newrel-albums-loading" class="hidden text-white py-10 text-center">
           <i class="fas fa-spinner fa-spin text-3xl"></i>
         </div>
-        <div id="videos-error"
-          class="hidden text-center text-white py-8">
+        <div id="newrel-albums-error" class="hidden text-center text-white py-8">
           Không thể tải dữ liệu
         </div>
       </section>
@@ -63,23 +58,23 @@ export const VideoSection = {
   },
 
   hideScrollbar() {
-    document.querySelector("#videos-scrollbar-track")?.classList.add("hidden");
+    document.querySelector("#newrel-albums-scrollbar-track")?.classList.add("hidden");
   },
 
   showScrollbar() {
-    document.querySelector("#videos-scrollbar-track")?.classList.remove("hidden");
+    document.querySelector("#newrel-albums-scrollbar-track")?.classList.remove("hidden");
   },
 
   getCarouselMetrics() {
-    const viewport = document.querySelector("#videos-viewport");
-    const container = document.querySelector("#videos-container");
-    const firstCard = container?.querySelector(".w-80");
+    const viewport = document.querySelector("#newrel-albums-viewport");
+    const container = document.querySelector("#newrel-albums-container");
+    const firstCard = container?.querySelector(".w-56");
     if (!viewport || !container) {
-      return { cardWidth: 320, itemsPerView: 5, viewportWidth: 1600, totalWidth: 0 };
+      return { cardWidth: 240, itemsPerView: 5, viewportWidth: 1200, totalWidth: 0 };
     }
     const viewportWidth = viewport.offsetWidth;
-    const gap = parseFloat(getComputedStyle(container).gap) || 24; 
-    const cardWidth = firstCard ? firstCard.offsetWidth : 320;
+    const gap = parseFloat(getComputedStyle(container).gap) || 24;
+    const cardWidth = firstCard ? firstCard.offsetWidth : 224;
     const cardWithGap = cardWidth + gap;
     const itemsPerView = Math.floor(viewportWidth / cardWithGap);
     return {
@@ -92,27 +87,27 @@ export const VideoSection = {
 
   getMaxIndex() {
     const metrics = this.getCarouselMetrics();
-    return Math.max(0, this.videos.length - metrics.itemsPerView);
+    return Math.max(0, this.albums.length - metrics.itemsPerView);
   },
 
-  async fetchVideos() {
+  async fetchAlbums() {
     try {
       const res = await fetch(this.API_URL);
       if (!res.ok) throw new Error("Fetch error");
       const data = await res.json();
-      this.videos = data?.items ?? [];
-      if (!this.videos.length) {
+      this.albums = data?.items ?? [];
+      if (!this.albums.length) {
         throw new Error("Empty data");
       }
       this.hideError();
-      await this.renderVideos();
+      await this.renderAlbums();
       requestAnimationFrame(() => {
         this.updateNavigation();
         this.updateScrollbar();
         if (this.hideInternalLoading) {
           this.hideInternalLoading = false;
           const metrics = this.getCarouselMetrics();
-          if (this.videos.length > metrics.itemsPerView) {
+          if (this.albums.length > metrics.itemsPerView) {
             this.showScrollbar();
           }
         }
@@ -126,85 +121,91 @@ export const VideoSection = {
   },
 
   hideLoading() {
-    document.querySelector("#videos-loading")?.classList.add("hidden");
+    document.querySelector("#newrel-albums-loading")?.classList.add("hidden");
   },
 
   showError() {
-    document.querySelector("#videos-loading")?.classList.add("hidden");
-    document.querySelector("#videos-error")?.classList.remove("hidden");
+    document.querySelector("#newrel-albums-loading")?.classList.add("hidden");
+    document.querySelector("#newrel-albums-error")?.classList.remove("hidden");
   },
 
   hideError() {
-    document.querySelector("#videos-error")?.classList.add("hidden");
+    document.querySelector("#newrel-albums-error")?.classList.add("hidden");
   },
 
-  renderVideos() {
+  renderAlbums() {
     return new Promise((resolve) => {
-      const container = document.querySelector("#videos-container");
-      if (!container) return resolve();
+      const container = document.querySelector("#newrel-albums-container");
+      if (!container) {
+        console.error("Albums container not found");
+        return resolve();
+      }
       container.innerHTML = "";
-      if (this.videos.length === 0) return resolve();
+      if (this.albums.length === 0) return resolve();
+      
       let loadedImages = 0;
       const checkAllLoaded = () => {
         loadedImages++;
-        if (loadedImages === this.videos.length) resolve();
+        if (loadedImages === this.albums.length) resolve();
       };
-      this.videos.forEach((video) => {
+      
+      this.albums.forEach((album) => {
         const card = document.createElement("div");
-        card.className = "flex-shrink-0 w-80 cursor-pointer";
+        card.className = "flex-shrink-0 w-56 cursor-pointer";
         card.innerHTML = `
           <div class="group">
             <div class="relative">
-              <img
-                src="${video.thumb}"
-                class="w-full aspect-video rounded-xl object-cover transition"/>
-              <div class="absolute inset-0 flex items-center justify-center
-                          opacity-0 group-hover:opacity-100
-                          bg-black/40 transition rounded-xl">
+              <img src="${album.thumb}"
+                   class="w-full aspect-square rounded-lg object-cover"/>
+              <div class="absolute inset-0 bg-black/40 opacity-0
+                          group-hover:opacity-100 transition
+                          flex items-center justify-center rounded-lg">
                 <div class="w-12 h-12 bg-white rounded-full
                             flex items-center justify-center">
                   <i class="fas fa-play text-gray-900 ml-0.5"></i>
                 </div>
               </div>
             </div>
-            <h3 class="mt-3 text-white font-semibold line-clamp-2">
-              ${video.name}
-            </h3>
-            <p class="text-gray-400 text-sm">
-              ${video.views.toLocaleString()} lượt xem
-            </p>
+            <h3 class="mt-3 text-white font-semibold truncate">${album.name}</h3>
+            <p class="text-gray-400 text-sm">${album.albumType}</p>
           </div>
-        `;
-        card.addEventListener("click", () => {
-          this.navigateToVideo(video);
+        `; 
+        card.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          this.navigateToAlbum(album);
         });
         const img = card.querySelector("img");
         if (img) img.onload = img.onerror = checkAllLoaded;
         container.appendChild(card);
       });
-      if (this.videos.every((v) => !v.thumb)) resolve();
+      if (this.albums.every((a) => !a.thumb)) resolve();
     });
   },
 
-  navigateToVideo(video) {
-    const slug = video.slug || video.id;
-    if (!slug || !this.router) return;
-    this.router.navigate(`/video/details/${slug}`);
+  navigateToAlbum(album) {
+    const slug = album.slug || album.id;
+    if (!slug) {
+      console.error("No slug found for album:", album);
+      return;
+    }
+    if (!this.router) {
+      console.error("Router not initialized!");
+      return;
+    }
+    const url = `/album/details/${slug}`;
+    this.router.navigate(url);
   },
 
   updateNavigation() {
     const maxIndex = this.getMaxIndex();
-    const prevBtn = document.querySelector("#videos-prev");
-    const nextBtn = document.querySelector("#videos-next");
+    const prevBtn = document.querySelector("#newrel-albums-prev");
+    const nextBtn = document.querySelector("#newrel-albums-next");
     if (!prevBtn || !nextBtn) return;
-    const isAtStart = this.currentIndex === 0;
-    const isAtEnd = this.currentIndex >= maxIndex;
-    prevBtn.disabled = isAtStart;
-    prevBtn.style.opacity = isAtStart ? "0.5" : "1";
-    prevBtn.style.pointerEvents = isAtStart ? "none" : "auto";
-    nextBtn.disabled = isAtEnd;
-    nextBtn.style.opacity = isAtEnd ? "0.5" : "1";
-    nextBtn.style.pointerEvents = isAtEnd ? "none" : "auto";
+    prevBtn.disabled = this.currentIndex === 0;
+    nextBtn.disabled = this.currentIndex >= maxIndex;
+    prevBtn.style.opacity = prevBtn.disabled ? "0.5" : "1";
+    nextBtn.style.opacity = nextBtn.disabled ? "0.5" : "1";
   },
 
   slide(dir) {
@@ -219,12 +220,12 @@ export const VideoSection = {
   },
 
   updateSlide() {
-    const container = document.querySelector("#videos-container");
+    const container = document.querySelector("#newrel-albums-container");
     if (!container) return;
     const maxIndex = this.getMaxIndex();
     const metrics = this.getCarouselMetrics();
     this.currentIndex = Math.max(0, Math.min(this.currentIndex, maxIndex));
-    const translateX = this.currentIndex === maxIndex && this.videos.length > metrics.itemsPerView
+    const translateX = this.currentIndex === maxIndex && this.albums.length > metrics.itemsPerView
       ? metrics.totalWidth - metrics.viewportWidth
       : this.currentIndex * metrics.cardWidth;
     container.style.transform = `translateX(-${translateX}px)`;
@@ -233,20 +234,20 @@ export const VideoSection = {
   },
 
   updateScrollbar() {
-    const track = document.querySelector("#videos-scrollbar-track");
-    const thumb = document.querySelector("#videos-scrollbar-thumb");
-    if (!track || !thumb || !this.videos.length) {
+    const track = document.querySelector("#newrel-albums-scrollbar-track");
+    const thumb = document.querySelector("#newrel-albums-scrollbar-thumb");
+    if (!track || !thumb || !this.albums.length) {
       this.hideScrollbar();
       return;
     }
     const metrics = this.getCarouselMetrics();
     const maxIndex = this.getMaxIndex();
-    if (this.videos.length <= metrics.itemsPerView) {
+    if (this.albums.length <= metrics.itemsPerView) {
       this.hideScrollbar();
       return;
     }
     this.showScrollbar();
-    const visibleRatio = metrics.itemsPerView / this.videos.length;
+    const visibleRatio = metrics.itemsPerView / this.albums.length;
     const thumbWidth = Math.max(visibleRatio * 100, 10);
     const progress = maxIndex > 0 ? this.currentIndex / maxIndex : 0;
     thumb.style.width = `${thumbWidth}%`;
@@ -261,16 +262,19 @@ export const VideoSection = {
   },
 
   setupEventListeners() {
-    const prev = document.querySelector("#videos-prev");
-    const next = document.querySelector("#videos-next");
-    const track = document.querySelector("#videos-scrollbar-track");
-    const thumb = document.querySelector("#videos-scrollbar-thumb");
+    const prev = document.querySelector("#newrel-albums-prev");
+    const next = document.querySelector("#newrel-albums-next");
+    const track = document.querySelector("#newrel-albums-scrollbar-track");
+    const thumb = document.querySelector("#newrel-albums-scrollbar-thumb");
+    
     prev?.addEventListener("click", () => this.slide("prev"));
     next?.addEventListener("click", () => this.slide("next"));
+    
     track?.addEventListener("click", (e) => {
       const rect = track.getBoundingClientRect();
       this.scrollToPosition((e.clientX - rect.left) / rect.width);
     });
+    
     let startX = 0, startLeft = 0;
     thumb?.addEventListener("mousedown", (e) => {
       this.isDragging = true;
@@ -278,7 +282,7 @@ export const VideoSection = {
       startLeft = thumb.offsetLeft;
       e.preventDefault();
     });
-
+    
     document.addEventListener("mousemove", (e) => {
       if (!this.isDragging) return;
       const rect = track.getBoundingClientRect();
@@ -288,10 +292,11 @@ export const VideoSection = {
       const percent = newLeft / maxLeft;
       this.scrollToPosition(percent);
     });
-
+    
     document.addEventListener("mouseup", () => {
       this.isDragging = false;
     });
+    
     let resizeTimeout;
     window.addEventListener("resize", () => {
       clearTimeout(resizeTimeout);
@@ -308,6 +313,6 @@ export const VideoSection = {
       this.hideLoading();
     }
     this.setupEventListeners();
-    return this.fetchVideos();
+    return this.fetchAlbums();
   },
 };

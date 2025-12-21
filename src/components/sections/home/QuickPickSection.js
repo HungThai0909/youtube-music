@@ -113,7 +113,6 @@ export const QuickPickSection = {
       if (count === 0) {
         container.innerHTML = `
           <div class="flex h-full items-center justify-center text-gray-400">
-            Không có playlist
           </div>
         `;
         return resolve();

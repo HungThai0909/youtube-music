@@ -1,60 +1,64 @@
-export const VideoSection = {
-  API_URL: `${import.meta.env.VITE_BASE_URL}/explore/videos`,
+export const LineAlbumSection = {
   currentIndex: 0,
-  videos: [],
+  albums: [],
   isDragging: false,
   router: null,
+  lineSlug: null,
   hideInternalLoading: false,
   setRouter(routerInstance) {
     this.router = routerInstance;
+  },
+  setLineSlug(slug) {
+    this.lineSlug = slug;
   },
   render() {
     return `
       <section class="mb-12">
         <div class="flex items-center justify-between mb-6">
-          <h2 class="text-5xl font-bold text-white">
-            Video nhạc mới
-          </h2>
+          <h2 class="text-5xl font-bold text-white">Đĩa nhạc</h2>
           <div class="flex gap-3">
-            <button id="videos-prev"
+            <button id="line-albums-prev"
               class="w-9 h-9 rounded-full bg-gray-800 hover:bg-gray-700
                      text-gray-400 hover:text-white flex items-center justify-center cursor-pointer">
               <i class="fas fa-chevron-left"></i>
             </button>
-            <button id="videos-next"
+            <button id="line-albums-next"
               class="w-9 h-9 rounded-full bg-gray-800 hover:bg-gray-700
                      text-gray-400 hover:text-white flex items-center justify-center cursor-pointer">
               <i class="fas fa-chevron-right"></i>
             </button>
           </div>
         </div>
-        <div class="relative overflow-hidden" id="videos-viewport">
-          <div id="videos-container"
+        <div class="relative overflow-hidden" id="line-albums-viewport">
+          <div id="line-albums-container"
             class="flex gap-6 transition-transform duration-500 ease-in-out">
-            ${Array(5).fill('').map(() => `
-              <div class="flex-shrink-0 w-80 opacity-0">
-                <div class="w-full aspect-video rounded-xl bg-gray-800"></div>
+            ${Array(5)
+              .fill("")
+              .map(
+                () => `
+              <div class="flex-shrink-0 w-56 opacity-0">
+                <div class="w-full aspect-square rounded-lg bg-gray-800"></div>
                 <div class="mt-3 h-6 bg-gray-800 rounded w-3/4"></div>
                 <div class="mt-2 h-4 bg-gray-800 rounded w-1/2"></div>
-              </div>
-            `).join('')}
+              </div>`
+              )
+              .join("")}
           </div>
         </div>
         <div class="h-5 mt-4">
-          <div id="videos-scrollbar-track"
+          <div id="line-albums-scrollbar-track"
             class="h-1 bg-white/10 rounded-full relative cursor-pointer hidden">
-            <div id="videos-scrollbar-thumb"
-              class="absolute top-1/2 -translate-y-1/2
-                     h-1 bg-white/40 rounded-full
+            <div id="line-albums-scrollbar-thumb"
+              class="absolute top-1/2 -translate-y-1/2 h-1 bg-white/40 rounded-full
                      transition-all duration-300 cursor-pointer w-1/5 left-0">
             </div>
           </div>
         </div>
-        <div id="videos-loading"
+        <div id="line-albums-loading"
           class="hidden text-white py-10 text-center">
           <i class="fas fa-spinner fa-spin text-3xl"></i>
         </div>
-        <div id="videos-error"
+        <div id="line-albums-error"
           class="hidden text-center text-white py-8">
           Không thể tải dữ liệu
         </div>
@@ -63,23 +67,32 @@ export const VideoSection = {
   },
 
   hideScrollbar() {
-    document.querySelector("#videos-scrollbar-track")?.classList.add("hidden");
+    document
+      .querySelector("#line-albums-scrollbar-track")
+      ?.classList.add("hidden");
   },
 
   showScrollbar() {
-    document.querySelector("#videos-scrollbar-track")?.classList.remove("hidden");
+    document
+      .querySelector("#line-albums-scrollbar-track")
+      ?.classList.remove("hidden");
   },
 
   getCarouselMetrics() {
-    const viewport = document.querySelector("#videos-viewport");
-    const container = document.querySelector("#videos-container");
-    const firstCard = container?.querySelector(".w-80");
+    const viewport = document.querySelector("#line-albums-viewport");
+    const container = document.querySelector("#line-albums-container");
+    const firstCard = container?.querySelector(".w-56");
     if (!viewport || !container) {
-      return { cardWidth: 320, itemsPerView: 5, viewportWidth: 1600, totalWidth: 0 };
+      return {
+        cardWidth: 240,
+        itemsPerView: 5,
+        viewportWidth: 1200,
+        totalWidth: 0,
+      };
     }
     const viewportWidth = viewport.offsetWidth;
-    const gap = parseFloat(getComputedStyle(container).gap) || 24; 
-    const cardWidth = firstCard ? firstCard.offsetWidth : 320;
+    const gap = parseFloat(getComputedStyle(container).gap) || 24;
+    const cardWidth = firstCard ? firstCard.offsetWidth : 224;
     const cardWithGap = cardWidth + gap;
     const itemsPerView = Math.floor(viewportWidth / cardWithGap);
     return {
@@ -92,27 +105,29 @@ export const VideoSection = {
 
   getMaxIndex() {
     const metrics = this.getCarouselMetrics();
-    return Math.max(0, this.videos.length - metrics.itemsPerView);
+    return Math.max(0, this.albums.length - metrics.itemsPerView);
   },
 
-  async fetchVideos() {
+  async fetchAlbums() {
     try {
-      const res = await fetch(this.API_URL);
+      const res = await fetch(
+        `${import.meta.env.VITE_BASE_URL}/lines/${this.lineSlug}/albums`
+      );
       if (!res.ok) throw new Error("Fetch error");
       const data = await res.json();
-      this.videos = data?.items ?? [];
-      if (!this.videos.length) {
+      this.albums = data?.items ?? [];
+      if (!this.albums.length) {
         throw new Error("Empty data");
       }
       this.hideError();
-      await this.renderVideos();
+      await this.renderAlbums();
       requestAnimationFrame(() => {
         this.updateNavigation();
         this.updateScrollbar();
         if (this.hideInternalLoading) {
           this.hideInternalLoading = false;
           const metrics = this.getCarouselMetrics();
-          if (this.videos.length > metrics.itemsPerView) {
+          if (this.albums.length > metrics.itemsPerView) {
             this.showScrollbar();
           }
         }
@@ -126,85 +141,106 @@ export const VideoSection = {
   },
 
   hideLoading() {
-    document.querySelector("#videos-loading")?.classList.add("hidden");
+    document.querySelector("#line-albums-loading")?.classList.add("hidden");
   },
 
   showError() {
-    document.querySelector("#videos-loading")?.classList.add("hidden");
-    document.querySelector("#videos-error")?.classList.remove("hidden");
+    document.querySelector("#line-albums-loading")?.classList.add("hidden");
+    document.querySelector("#line-albums-error")?.classList.remove("hidden");
   },
 
   hideError() {
-    document.querySelector("#videos-error")?.classList.add("hidden");
+    document.querySelector("#line-albums-error")?.classList.add("hidden");
   },
 
-  renderVideos() {
+  renderAlbums() {
     return new Promise((resolve) => {
-      const container = document.querySelector("#videos-container");
-      if (!container) return resolve();
+      const container = document.querySelector("#line-albums-container");
+      if (!container) {
+        console.error("Line albums container not found");
+        return resolve();
+      }
       container.innerHTML = "";
-      if (this.videos.length === 0) return resolve();
+      if (this.albums.length === 0) return resolve();
+      console.log("Rendering line albums:", this.albums.length);
+      console.log("Router available:", !!this.router);
       let loadedImages = 0;
       const checkAllLoaded = () => {
         loadedImages++;
-        if (loadedImages === this.videos.length) resolve();
+        if (loadedImages === this.albums.length) resolve();
       };
-      this.videos.forEach((video) => {
+      this.albums.forEach((album) => {
         const card = document.createElement("div");
-        card.className = "flex-shrink-0 w-80 cursor-pointer";
+        card.className = "flex-shrink-0 w-56 cursor-pointer";
         card.innerHTML = `
           <div class="group">
             <div class="relative">
-              <img
-                src="${video.thumb}"
-                class="w-full aspect-video rounded-xl object-cover transition"/>
-              <div class="absolute inset-0 flex items-center justify-center
-                          opacity-0 group-hover:opacity-100
-                          bg-black/40 transition rounded-xl">
+              <img src="${album.thumb || album.thumbnails?.[0] || ""}"
+                   class="w-full aspect-square rounded-lg object-cover"/>
+              <div class="absolute inset-0 bg-black/40 opacity-0
+                          group-hover:opacity-100 transition
+                          flex items-center justify-center rounded-lg">
                 <div class="w-12 h-12 bg-white rounded-full
                             flex items-center justify-center">
                   <i class="fas fa-play text-gray-900 ml-0.5"></i>
                 </div>
               </div>
             </div>
-            <h3 class="mt-3 text-white font-semibold line-clamp-2">
-              ${video.name}
+            <h3 class="mt-3 text-white font-semibold truncate">
+              ${album.name || album.title}
             </h3>
             <p class="text-gray-400 text-sm">
-              ${video.views.toLocaleString()} lượt xem
+              ${album.albumType || "Album"}
             </p>
           </div>
         `;
-        card.addEventListener("click", () => {
-          this.navigateToVideo(video);
+        card.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          console.log("Line album card clicked:", album.name || album.title);
+          this.navigateToAlbum(album);
         });
         const img = card.querySelector("img");
         if (img) img.onload = img.onerror = checkAllLoaded;
         container.appendChild(card);
       });
-      if (this.videos.every((v) => !v.thumb)) resolve();
+      if (this.albums.every((a) => !a.thumb && !a.thumbnails?.[0])) resolve();
     });
   },
 
-  navigateToVideo(video) {
-    const slug = video.slug || video.id;
-    if (!slug || !this.router) return;
-    this.router.navigate(`/video/details/${slug}`);
+  navigateToAlbum(album) {
+    console.log("navigateToAlbum called with:", album);
+    console.log("Router:", this.router);
+    const slug = album.slug || album.id || album._id;
+    if (!slug) {
+      console.error("No slug found for album:", album);
+      return;
+    }
+    if (!this.router) {
+      console.error(
+        "Router not initialized! Please call LineAlbumSection.setRouter(router) first"
+      );
+      return;
+    }
+    const url = `/album/details/${slug}`;
+    console.log("Navigating to:", url);
+    try {
+      this.router.navigate(url);
+      console.log("Navigation completed");
+    } catch (error) {
+      console.error("Navigation error:", error);
+    }
   },
 
   updateNavigation() {
     const maxIndex = this.getMaxIndex();
-    const prevBtn = document.querySelector("#videos-prev");
-    const nextBtn = document.querySelector("#videos-next");
+    const prevBtn = document.querySelector("#line-albums-prev");
+    const nextBtn = document.querySelector("#line-albums-next");
     if (!prevBtn || !nextBtn) return;
-    const isAtStart = this.currentIndex === 0;
-    const isAtEnd = this.currentIndex >= maxIndex;
-    prevBtn.disabled = isAtStart;
-    prevBtn.style.opacity = isAtStart ? "0.5" : "1";
-    prevBtn.style.pointerEvents = isAtStart ? "none" : "auto";
-    nextBtn.disabled = isAtEnd;
-    nextBtn.style.opacity = isAtEnd ? "0.5" : "1";
-    nextBtn.style.pointerEvents = isAtEnd ? "none" : "auto";
+    prevBtn.disabled = this.currentIndex === 0;
+    nextBtn.disabled = this.currentIndex >= maxIndex;
+    prevBtn.style.opacity = prevBtn.disabled ? "0.5" : "1";
+    nextBtn.style.opacity = nextBtn.disabled ? "0.5" : "1";
   },
 
   slide(dir) {
@@ -219,34 +255,36 @@ export const VideoSection = {
   },
 
   updateSlide() {
-    const container = document.querySelector("#videos-container");
+    const container = document.querySelector("#line-albums-container");
     if (!container) return;
     const maxIndex = this.getMaxIndex();
     const metrics = this.getCarouselMetrics();
     this.currentIndex = Math.max(0, Math.min(this.currentIndex, maxIndex));
-    const translateX = this.currentIndex === maxIndex && this.videos.length > metrics.itemsPerView
-      ? metrics.totalWidth - metrics.viewportWidth
-      : this.currentIndex * metrics.cardWidth;
+    const translateX =
+      this.currentIndex === maxIndex &&
+      this.albums.length > metrics.itemsPerView
+        ? metrics.totalWidth - metrics.viewportWidth
+        : this.currentIndex * metrics.cardWidth;
     container.style.transform = `translateX(-${translateX}px)`;
     this.updateNavigation();
     this.updateScrollbar();
   },
 
   updateScrollbar() {
-    const track = document.querySelector("#videos-scrollbar-track");
-    const thumb = document.querySelector("#videos-scrollbar-thumb");
-    if (!track || !thumb || !this.videos.length) {
+    const track = document.querySelector("#line-albums-scrollbar-track");
+    const thumb = document.querySelector("#line-albums-scrollbar-thumb");
+    if (!track || !thumb || !this.albums.length) {
       this.hideScrollbar();
       return;
     }
     const metrics = this.getCarouselMetrics();
     const maxIndex = this.getMaxIndex();
-    if (this.videos.length <= metrics.itemsPerView) {
+    if (this.albums.length <= metrics.itemsPerView) {
       this.hideScrollbar();
       return;
     }
     this.showScrollbar();
-    const visibleRatio = metrics.itemsPerView / this.videos.length;
+    const visibleRatio = metrics.itemsPerView / this.albums.length;
     const thumbWidth = Math.max(visibleRatio * 100, 10);
     const progress = maxIndex > 0 ? this.currentIndex / maxIndex : 0;
     thumb.style.width = `${thumbWidth}%`;
@@ -261,17 +299,21 @@ export const VideoSection = {
   },
 
   setupEventListeners() {
-    const prev = document.querySelector("#videos-prev");
-    const next = document.querySelector("#videos-next");
-    const track = document.querySelector("#videos-scrollbar-track");
-    const thumb = document.querySelector("#videos-scrollbar-thumb");
+    const prev = document.querySelector("#line-albums-prev");
+    const next = document.querySelector("#line-albums-next");
+    const track = document.querySelector("#line-albums-scrollbar-track");
+    const thumb = document.querySelector("#line-albums-scrollbar-thumb");
+
     prev?.addEventListener("click", () => this.slide("prev"));
     next?.addEventListener("click", () => this.slide("next"));
+
     track?.addEventListener("click", (e) => {
       const rect = track.getBoundingClientRect();
       this.scrollToPosition((e.clientX - rect.left) / rect.width);
     });
-    let startX = 0, startLeft = 0;
+
+    let startX = 0,
+      startLeft = 0;
     thumb?.addEventListener("mousedown", (e) => {
       this.isDragging = true;
       startX = e.clientX;
@@ -284,7 +326,10 @@ export const VideoSection = {
       const rect = track.getBoundingClientRect();
       const thumbWidth = thumb.offsetWidth;
       const maxLeft = rect.width - thumbWidth;
-      const newLeft = Math.max(0, Math.min(startLeft + e.clientX - startX, maxLeft));
+      const newLeft = Math.max(
+        0,
+        Math.min(startLeft + e.clientX - startX, maxLeft)
+      );
       const percent = newLeft / maxLeft;
       this.scrollToPosition(percent);
     });
@@ -292,6 +337,7 @@ export const VideoSection = {
     document.addEventListener("mouseup", () => {
       this.isDragging = false;
     });
+
     let resizeTimeout;
     window.addEventListener("resize", () => {
       clearTimeout(resizeTimeout);
@@ -307,7 +353,12 @@ export const VideoSection = {
     if (this.hideInternalLoading) {
       this.hideLoading();
     }
+    if (!this.router) {
+      console.warn(
+        "LineAlbumSection: Router not set yet. Call LineAlbumSection.setRouter(router) first!"
+      );
+    }
     this.setupEventListeners();
-    return this.fetchVideos();
+    return this.fetchAlbums();
   },
 };
