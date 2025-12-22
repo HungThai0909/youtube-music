@@ -1,5 +1,7 @@
 import { home } from "./pages/home";
 import { explore } from "./pages/explore";
+import { Login } from "./pages/Login"; // THÊM MỚI
+import { Register } from "./pages/Register"; // THÊM MỚI
 import { NewReleases, setNewReleasesRouter } from "./pages/NewReleases";
 import { MoodsSection } from "./components/sections/home/MoodsSection";
 import { QuickPickSection } from "./components/sections/home/QuickPickSection";
@@ -10,10 +12,16 @@ import { CategorySection } from "./components/sections/explore/CategorySection";
 import { AlbumSection as ExploreAlbumSection } from "./components/sections/explore/AlbumSection";
 import { MetaSection } from "./components/sections/explore/MetaSection";
 import { VideoSection } from "./components/sections/explore/VideoSection";
-import { PlaylistDetail, setPlaylistDetailRouter } from "./pages/PlaylistDetails";
+import {
+  PlaylistDetail,
+  setPlaylistDetailRouter,
+} from "./pages/PlaylistDetails";
 import { MoodDetail, setMoodDetailRouter } from "./pages/MoodDetails";
 import { AlbumDetail, setAlbumDetailRouter } from "./pages/AlbumDetails";
-import { CategoryDetail, setCategoryDetailRouter } from "./pages/CategoryDetails";
+import {
+  CategoryDetail,
+  setCategoryDetailRouter,
+} from "./pages/CategoryDetails";
 import { Charts, setChartsRouter } from "./pages/Charts";
 import { MetaPage, setMetaPageRouter } from "./pages/MetaPage";
 import { LineDetail, setLineDetailRouter } from "./pages/LineDetails";
@@ -45,6 +53,8 @@ setSongDetailRouter(router);
 router
   .on("/", home)
   .on("/explore", explore)
+  .on("/login", Login)
+  .on("/register", Register)
   .on("/new-releases", NewReleases)
   .on("/charts", Charts)
   .on("/moods", MetaPage)
@@ -53,7 +63,13 @@ router
   .on("/album/details/:id", AlbumDetail)
   .on("/category/:id", CategoryDetail)
   .on("/line/:id", LineDetail)
-  .on("/song/details/:id", SongDetail);
+  .on("/song/details/:id", SongDetail)
+  .on("/profile", () => {
+    home();
+    setTimeout(() => {
+      document.querySelector('a[href="/profile"]')?.click();
+    }, 60);
+  });
 
 router.resolve();
 

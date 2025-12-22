@@ -1,4 +1,30 @@
 export const Sidebar = () => {
+  const currentUser = JSON.parse(localStorage.getItem("currentUser") || "null");
+  const authSection = currentUser
+    ? `<a href="#" class="sidebar-link flex flex-col items-center hover:bg-zinc-800 rounded-2xl px-3 py-2 cursor-pointer transition-colors">
+          <div class="w-10 h-10 flex items-center justify-center">
+            <i class="fas fa-crown text-xl text-white"></i>
+          </div>
+          <span class="text-white text-xs font-medium">Nâng cấp</span>
+        </a>`
+    : `<a href="/login" data-navigo class="flex flex-col items-center hover:bg-zinc-800 rounded-2xl px-3 py-2 cursor-pointer transition-colors">
+        <div class="w-10 h-10 flex items-center justify-center">
+          <i class="fa-regular fa-user text-xl text-white"></i>
+        </div>
+        <span class="text-white text-xs font-medium">Đăng nhập</span>
+      </a>`;
+
+  const extendedAuth = currentUser
+    ? ``
+    : `<div class="px-5 mt-6">
+        <a href="/login" data-navigo class="block w-full bg-white text-black font-medium py-2.5 rounded-full hover:bg-gray-200 transition-colors text-sm mb-3 text-center cursor-pointer">
+          Đăng nhập
+        </a>
+        <p class="text-white text-xs leading-relaxed px-2">
+          Đăng nhập để tạo và chia sẻ danh sách phát, nhận nội dung đề xuất dành riêng cho bạn.
+        </p>
+      </div>`;
+
   return `
     <div class="fixed top-[64px] left-0 w-22 bg-black flex flex-col items-center py-6 h-[calc(100vh-64px)] z-40">
       <div class="flex flex-col">
@@ -21,13 +47,7 @@ export const Sidebar = () => {
           <span class="text-white text-xs font-medium">Thư viện</span>
         </div>
       </div>
-      <div class="w-16 h-px bg-zinc-700 my-3"></div>
-      <div class="flex flex-col items-center hover:bg-zinc-800 rounded-2xl px-3 py-2 cursor-pointer transition-colors">
-        <div class="w-10 h-10 flex items-center justify-center">
-          <i class="fa-regular fa-user text-xl text-white"></i>
-        </div>
-        <span class="text-white text-xs font-medium">Đăng nhập</span>
-      </div>
+      ${authSection}
     </div>
 
     <aside id="extendedSidebar" class="fixed top-0 left-0 w-[266px] bg-[#030303] h-screen z-[60] transform -translate-x-full transition-transform duration-300 overflow-y-auto">
@@ -60,16 +80,8 @@ export const Sidebar = () => {
           <i class="fas fa-crown text-2xl"></i>
           <span class="font-medium text-base">Nâng cấp</span>
         </a>
-        <div class="h-px bg-zinc-800 my-3 mx-2"></div>
       </nav>
-      <div class="px-5 mt-6">
-        <button class="w-full bg-white text-black font-medium py-2.5 rounded-full hover:bg-gray-200 transition-colors text-sm mb-3">
-          Đăng nhập
-        </button>
-        <p class="text-white text-xs leading-relaxed px-2">
-          Đăng nhập để tạo và chia sẻ danh sách phát, nhận nội dung đề xuất dành riêng cho bạn.
-        </p>
-      </div>
+      ${extendedAuth}
     </aside>
   `;
 };
