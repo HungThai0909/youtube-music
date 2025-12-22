@@ -93,6 +93,16 @@ export const LineSongSection = {
     const metrics = this.getCarouselMetrics();
     return Math.max(0, metrics.totalCols - metrics.colsPerView);
   },
+  formatViews(views) {
+    if (!views) return "0 N lượt xem";
+    if (views >= 1000000000)
+      return `${(views / 1000000000).toFixed(1)} B lượt xem`;
+    if (views >= 1000000)
+      return `${(views / 1000000).toFixed(1)} M lượt xem`;
+    if (views >= 1000) 
+      return `${(views / 1000).toFixed(1)} N lượt xem`;
+    return `${views} lượt xem`;
+  },
 
   async fetchSongs() {
     try {
@@ -129,35 +139,45 @@ export const LineSongSection = {
       this.songs.forEach((song) => {
         const card = document.createElement("div");
         card.className = "cursor-pointer";
+        card.dataset.songId = song.id;
         card.innerHTML = `
           <div class="group">
-            <div class="flex items-center gap-4 p-4 bg-gray-800 hover:bg-gray-700
+            <div class="flex items-center gap-4 p-3 hover:bg-gray-700
                         rounded-lg transition cursor-pointer">
-            <div class="relative group/image flex-shrink-0 cursor-pointer">
-            <img src="${song.thumb || song.thumbnails?.[0] || ""}"
-                 alt="${song.name || song.title}"
-                 class="w-16 h-16 rounded object-cover cursor-pointer"/>
-            <button class="absolute inset-0 flex items-center justify-center
-               bg-black/40 opacity-0 group-hover/image:opacity-100
-                 transition-opacity duration-200 rounded cursor-pointer">
-            <div class="w-8 h-8 bg-white rounded-full
-                 flex items-center justify-center">
-            <i class="fas fa-play text-gray-900 text-xs ml-0.5"></i>
+              <div class="relative flex-shrink-0 cursor-pointer">
+                <img src="${song.thumb || song.thumbnails?.[0] || ""}"
+                     alt="${song.name || song.title}"
+                     class="w-16 h-16 rounded object-cover cursor-pointer"/>
+                <button class="absolute inset-0 flex items-center justify-center
+                   bg-black/40 opacity-0 group-hover:opacity-100
+                     transition-opacity duration-200 rounded cursor-pointer">
+                  <div class="w-8 h-8 bg-white rounded-full
+                       flex items-center justify-center">
+                    <i class="fas fa-play text-gray-900 text-xs ml-0.5"></i>
+                  </div>
+                </button>
+              </div>
+              <div class="flex-1 min-w-0">
+                <h3 class="text-white font-semibold truncate">
+                  ${song.name || song.title}
+                </h3>
+                <p class="text-gray-400 text-sm truncate">
+                  ${this.formatViews(song.views)}${song.albumName ? ` &bull; ${song.albumName}` : ''}
+                </p>
+              </div>
             </div>
-            </button>
-            </div>
-            <div class="flex-1 min-w-0">
-            <h3 class="text-white font-semibold truncate">
-            ${song.name || song.title}
-            </h3>
-            <p class="text-gray-400 text-sm truncate">
-            ${(song.artists || []).join(", ") || song.albumName || "Unknown"}
-             </p>
-           </div>
-           </div>
           </div>`;
+        
         const img = card.querySelector("img");
         if (img) img.onload = img.onerror = checkAllLoaded;
+        
+        card.addEventListener('click', (e) => {
+          e.preventDefault();
+          if (this.router && song.id) {
+            this.router.navigate(`/song/details/${song.id}`);
+          }
+        });
+        
         container.appendChild(card);
       });
 
@@ -234,6 +254,7 @@ export const LineSongSection = {
     const next = document.querySelector("#line-songs-next");
     const track = document.querySelector("#line-songs-scrollbar-track");
     const thumb = document.querySelector("#line-songs-scrollbar-thumb");
+    
     prev?.addEventListener("click", () => this.slide("prev"));
     next?.addEventListener("click", () => this.slide("next"));
     track?.addEventListener("click", (e) => {

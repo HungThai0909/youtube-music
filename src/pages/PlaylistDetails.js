@@ -34,6 +34,7 @@ async function loadPlaylistDetail(slug) {
     const data = await fetchPlaylist(slug);
     await renderHero(data); 
     hideLoading();
+    setupTrackClickHandlers();
   } catch (err) {
     console.error(err);
     hideLoading();
@@ -91,19 +92,18 @@ function renderTracks(tracks) {
   return tracks
     .map(
       (t, i) => `
-      <div class="group flex items-center gap-4 py-3 px-4 rounded-lg hover:bg-gray-800 cursor-pointer transition-colors">
+      <div class="track-item group flex items-center gap-4 py-3 px-4 rounded-lg hover:bg-gray-800 cursor-pointer transition-colors" data-song-id="${t.videoId || t.id || ''}">
         <span class="text-gray-400 w-8 text-lg font-medium">${i + 1}</span>
         <div class="w-14 h-14 rounded-lg overflow-hidden flex-shrink-0 shadow-md relative">
           <img src="${t.thumbnails?.[0] || ""}" class="w-full h-full object-cover"
                onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2256%22 height=%2256%22%3E%3Crect fill=%22%23374151%22 width=%22100%25%22 height=%22100%25%22/%3E%3C/svg%3E'">
-          <button class="absolute inset-0 flex items-center justify-center
+          <div class="absolute inset-0 flex items-center justify-center
                          bg-black/40 opacity-0 group-hover:opacity-100
-                         transition-opacity duration-200 rounded-lg cursor-pointer"
-                  onclick="event.stopPropagation()">
+                         transition-opacity duration-200 rounded-lg cursor-pointer">
             <div class="w-8 h-8 bg-white rounded-full flex items-center justify-center transition cursor-pointer">
               <i class="fas fa-play text-gray-900 text-sm ml-0.5"></i>
             </div>
-          </button>
+          </div>
         </div>
         <div class="flex-1 min-w-0">
           <h3 class="text-white font-medium truncate transition-colors">${t.title}</h3>
@@ -114,6 +114,18 @@ function renderTracks(tracks) {
     `
     )
     .join("");
+}
+
+function setupTrackClickHandlers() {
+  const trackItems = document.querySelectorAll('.track-item');
+  trackItems.forEach(item => {
+    item.addEventListener('click', (e) => {
+      const songId = item.dataset.songId;
+      if (currentRouter && songId) {
+        currentRouter.navigate(`/song/details/${songId}`);
+      }
+    });
+  });
 }
 
 function hideLoading() {

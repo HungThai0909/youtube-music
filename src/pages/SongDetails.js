@@ -64,9 +64,6 @@ async function renderHero(data) {
           <span>•</span>
           <span>${data.popularity || 0} lượt nghe</span>
         </div>
-        <button class="px-8 py-3 bg-white text-black rounded-full font-semibold hover:scale-105 transition mb-8">
-          <i class="fas fa-play mr-2"></i> Phát nhạc
-        </button>
       </div>
       <div class="w-1/2" id="song-content">
         ${albumTracks.length > 0 ? renderAlbumSection(data.album) : ''}
@@ -128,10 +125,17 @@ function renderPlaylistsSection(playlists) {
         ${playlists.map(playlist => `
           <div class="group cursor-pointer" data-playlist-slug="${playlist.slug}">
             <div class="bg-gray-800 rounded-lg p-4 hover:bg-gray-700 transition">
-              <img src="${playlist.thumbnails?.[0]}" 
-                   class="w-full aspect-video rounded-lg mb-3 object-cover"
-                   onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22320%22 height=%22180%22%3E%3Crect fill=%22%23374151%22 width=%22100%25%22 height=%22100%25%22/%3E%3C/svg%3E'">
-              <h3 class="text-white font-semibold truncate group-hover:text-blue-400">${playlist.title}</h3>
+              <div class="relative mb-3">
+                <img src="${playlist.thumbnails?.[0]}" 
+                     class="w-full aspect-video rounded-lg object-cover"
+                     onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22320%22 height=%22180%22%3E%3Crect fill=%22%23374151%22 width=%22100%25%22 height=%22100%25%22/%3E%3C/svg%3E'">
+                <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-lg flex items-center justify-center">
+                  <div class="w-12 h-12 bg-white rounded-full flex items-center justify-center">
+                    <i class="fas fa-play text-gray-900 text-base ml-0.5"></i>
+                  </div>
+                </div>
+              </div>
+              <h3 class="text-white font-semibold truncate">${playlist.title}</h3>
               <p class="text-gray-400 text-sm">${playlist.tracks?.length || 0} bài hát</p>
             </div>
           </div>
@@ -161,7 +165,7 @@ function renderRelatedSection(songs) {
               </div>
             </div>
             <div class="flex-1 min-w-0">
-              <h3 class="text-white font-medium truncate group-hover:text-blue-400">${song.title}</h3>
+              <h3 class="text-white font-medium truncate">${song.title}</h3>
             </div>
             <span class="text-gray-400 text-sm font-medium">${formatDuration(song.duration)}</span>
           </div>
