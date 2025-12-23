@@ -61,8 +61,8 @@ export const Register = () => {
                 </div>
                 <button
                   type="submit"
-                  class="w-full bg-white text-black font-semibold py-3 rounded-full hover:bg-gray-200 transition-colors"
-                >
+                  class="w-full bg-white text-black font-semibold py-3 rounded-full hover:bg-gray-200 
+                  transition-colors cursor-pointer">
                   Đăng ký
                 </button>
               </form>

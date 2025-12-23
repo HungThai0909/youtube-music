@@ -1,7 +1,7 @@
 import { home } from "./pages/home";
 import { explore } from "./pages/explore";
-import { Login } from "./pages/Login"; // THÊM MỚI
-import { Register } from "./pages/Register"; // THÊM MỚI
+import { Login } from "./pages/Login";
+import { Register } from "./pages/Register"; 
 import { NewReleases, setNewReleasesRouter } from "./pages/NewReleases";
 import { MoodsSection } from "./components/sections/home/MoodsSection";
 import { QuickPickSection } from "./components/sections/home/QuickPickSection";
@@ -12,16 +12,10 @@ import { CategorySection } from "./components/sections/explore/CategorySection";
 import { AlbumSection as ExploreAlbumSection } from "./components/sections/explore/AlbumSection";
 import { MetaSection } from "./components/sections/explore/MetaSection";
 import { VideoSection } from "./components/sections/explore/VideoSection";
-import {
-  PlaylistDetail,
-  setPlaylistDetailRouter,
-} from "./pages/PlaylistDetails";
+import { PlaylistDetail, setPlaylistDetailRouter } from "./pages/PlaylistDetails";
 import { MoodDetail, setMoodDetailRouter } from "./pages/MoodDetails";
 import { AlbumDetail, setAlbumDetailRouter } from "./pages/AlbumDetails";
-import {
-  CategoryDetail,
-  setCategoryDetailRouter,
-} from "./pages/CategoryDetails";
+import { CategoryDetail, setCategoryDetailRouter } from "./pages/CategoryDetails";
 import { Charts, setChartsRouter } from "./pages/Charts";
 import { MetaPage, setMetaPageRouter } from "./pages/MetaPage";
 import { LineDetail, setLineDetailRouter } from "./pages/LineDetails";
@@ -65,9 +59,19 @@ router
   .on("/line/:id", LineDetail)
   .on("/song/details/:id", SongDetail)
   .on("/profile", () => {
+    if (window.location.pathname !== "/") {
+      home();
+      setTimeout(() => {
+        window.openProfileModal?.();
+      }, 60);
+    } else {
+      window.openProfileModal?.();
+    }
+  })
+  .on("/change-password", () => {
     home();
     setTimeout(() => {
-      document.querySelector('a[href="/profile"]')?.click();
+      document.querySelector('a[href="/change-password"]')?.click();
     }, 60);
   });
 
