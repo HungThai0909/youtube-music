@@ -1,6 +1,7 @@
 import { Header } from "../components/header";
 import { Sidebar } from "../components/sidebar";
 import { initSidebarToggle } from "./home";
+import { initSearchHandler } from "../utils/initSearchHandler";
 import { LineSongSection } from "../components/sections/line/SongSection";
 import { LinePlaylistSection } from "../components/sections/line/PlaylistSection";
 import { LineVideoSection } from "../components/sections/line/VideoSection";
@@ -47,6 +48,7 @@ export const LineDetail = (match) => {
 
   app.innerHTML = html;
   initSidebarToggle();
+  initSearchHandler();
   setTimeout(async () => {
     try {
       await Promise.all([

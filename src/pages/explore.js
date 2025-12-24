@@ -5,6 +5,7 @@ import { MetaSection } from "../components/sections/explore/MetaSection";
 import { VideoSection } from "../components/sections/explore/VideoSection";
 import { Sidebar } from "../components/sidebar";
 import { initSidebarToggle } from "./home";
+import { initSearchHandler } from "../utils/initSearchHandler";
 
 export const explore = () => {
   const app = document.querySelector("#app");
@@ -52,4 +53,5 @@ export const explore = () => {
     }
   }, 0);
   initSidebarToggle();
+  initSearchHandler();
 };

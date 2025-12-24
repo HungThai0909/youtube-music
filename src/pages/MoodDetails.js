@@ -1,6 +1,7 @@
 import { Header } from "../components/header";
 import { Sidebar } from "../components/sidebar";
 import { initSidebarToggle } from "./home";
+import { initSearchHandler } from "../utils/initSearchHandler";
 import { MoodsSection } from "../components/sections/home/MoodsSection";
 import { QuickPickSection } from "../components/sections/home/QuickPickSection";
 
@@ -30,6 +31,7 @@ export const MoodDetail = (match) => {
     </div>
   `;
   initSidebarToggle();
+  initSearchHandler();
   initPage(moodSlug);
 };
 

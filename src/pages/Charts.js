@@ -1,6 +1,7 @@
 import { Header } from "../components/header";
 import { Sidebar } from "../components/sidebar";
 import { initSidebarToggle } from "./home";
+import { initSearchHandler } from "../utils/initSearchHandler";
 
 let chartsRouter = null;
 export const setChartsRouter = (router) => {
@@ -559,6 +560,7 @@ export const Charts = () => {
   setTimeout(async () => {
     await initializePage();
     initSidebarToggle();
+    initSearchHandler();
   }, 0);
 };
 

@@ -1,6 +1,7 @@
 import { Header } from "../components/header";
 import { Sidebar } from "../components/sidebar";
 import { initSidebarToggle } from "./home";
+import { initSearchHandler } from "../utils/initSearchHandler";
 import { AlbumSection } from "../components/sections/explore/new-releases/AblumSection";
 import { VideoSection } from "../components/sections/explore/VideoSection";
 
@@ -45,6 +46,7 @@ export const NewReleases = () => {
     }
   }, 0);
   initSidebarToggle();
+  initSearchHandler();
 };
 
 export let newReleasesRouter = null;

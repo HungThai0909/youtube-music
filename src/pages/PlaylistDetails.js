@@ -1,6 +1,7 @@
 import { Header } from "../components/header";
 import { Sidebar } from "../components/sidebar";
 import { initSidebarToggle } from "./home";
+import { initSearchHandler } from "../utils/initSearchHandler";
 
 let currentRouter = null;
 export const PlaylistDetail = (match) => {
@@ -22,6 +23,7 @@ export const PlaylistDetail = (match) => {
     </div>
   `;
   initSidebarToggle();
+  initSearchHandler();
   loadPlaylistDetail(playlistSlug);
 };
 

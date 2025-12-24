@@ -1,6 +1,7 @@
 import { Header } from "../components/header";
 import { Sidebar } from "../components/sidebar";
 import { initSidebarToggle } from "./home";
+import { initSearchHandler } from "../utils/initSearchHandler";
 
 let currentRouter = null;
 export const AlbumDetail = (match) => {
@@ -22,6 +23,7 @@ export const AlbumDetail = (match) => {
     </div>
   `;
   initSidebarToggle();
+  initSearchHandler();
   loadAlbumDetail(albumSlug);
 };
 
@@ -32,7 +34,7 @@ export const setAlbumDetailRouter = (router) => {
 async function loadAlbumDetail(slug) {
   try {
     const data = await fetchAlbum(slug);
-    await renderHero(data); 
+    await renderHero(data);
     hideLoading();
     setupTrackClickHandlers();
   } catch (err) {
@@ -42,7 +44,9 @@ async function loadAlbumDetail(slug) {
 }
 
 async function fetchAlbum(slug) {
-  const url = `${import.meta.env.VITE_BASE_URL}/albums/details/${slug}?limit=50`;
+  const url = `${
+    import.meta.env.VITE_BASE_URL
+  }/albums/details/${slug}?limit=50`;
   const res = await fetch(url);
   if (!res.ok) throw new Error("Fetch failed");
   return res.json();
@@ -100,7 +104,9 @@ function renderTracks(tracks) {
   return tracks
     .map(
       (t, i) => `
-      <div class="track-item group flex items-center gap-4 py-3 px-4 rounded-lg hover:bg-gray-800 cursor-pointer transition-colors" data-song-id="${t.videoId || t.id || ''}">
+      <div class="track-item group flex items-center gap-4 py-3 px-4 rounded-lg hover:bg-gray-800 cursor-pointer transition-colors" data-song-id="${
+        t.videoId || t.id || ""
+      }">
         <span class="text-gray-400 w-8 text-lg font-medium">${i + 1}</span>
         <div class="relative w-14 h-14 rounded-lg overflow-hidden flex-shrink-0 shadow-md">
           <img
@@ -135,9 +141,9 @@ function renderTracks(tracks) {
 }
 
 function setupTrackClickHandlers() {
-  const trackItems = document.querySelectorAll('.track-item');
-  trackItems.forEach(item => {
-    item.addEventListener('click', (e) => {
+  const trackItems = document.querySelectorAll(".track-item");
+  trackItems.forEach((item) => {
+    item.addEventListener("click", (e) => {
       const songId = item.dataset.songId;
       if (currentRouter && songId) {
         currentRouter.navigate(`/song/details/${songId}`);

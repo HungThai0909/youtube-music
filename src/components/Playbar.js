@@ -14,6 +14,7 @@ let playlist = [];
 let currentIndex = -1;
 let hasTrackedPlay = false;
 let lastPlayRequestId = 0;
+let isLoadingAudio = false;
 
 function initAudioPlayer() {
   if (!audioPlayer) {
@@ -27,31 +28,15 @@ function initAudioPlayer() {
     });
     audioPlayer.addEventListener("pause", () => {
       isPlaying = false;
-      console.warn("[Player] pause event", {
-        src: audioPlayer.src,
-        currentTime: audioPlayer.currentTime,
-        stack: new Error().stack,
-      });
       updatePlayButton();
     });
-
-    try {
-      const _origPause = audioPlayer.pause.bind(audioPlayer);
-      audioPlayer.pause = function () {
-        console.warn(
-          "[Player] pause() called programmatically",
-          new Error().stack
-        );
-        return _origPause();
-      };
-      const _origPlay = audioPlayer.play.bind(audioPlayer);
-      audioPlayer.play = function () {
-        return _origPlay();
-      };
-    } catch (e) {
-      console.warn("Could not wrap pause/play for logging", e);
-    }
-
+    
+    audioPlayer.addEventListener("error", (e) => {
+      console.error("[Player] Audio error:", e);
+      isLoadingAudio = false;
+      const playerEl = document.querySelector("#music-player-footer");
+      if (playerEl) playerEl.removeAttribute("data-loading");
+    });
     audioPlayer.volume = volume / 100;
     audioPlayer.muted = isMuted;
   }
@@ -65,7 +50,7 @@ function onAudioLoaded() {
 function onTimeUpdate() {
   currentTime = audioPlayer.currentTime;
   updateProgressBar();
-  if (!hasTrackedPlay && currentTime > 3 && isPlaying) {
+  if (!hasTrackedPlay && currentTime > 3 && isPlaying && !audioPlayer.paused) {
     trackPlayEvent(currentSong.id);
     hasTrackedPlay = true;
   }
@@ -76,7 +61,6 @@ async function trackPlayEvent(songId) {
   if (!accessToken) {
     return; 
   }
-
   try {
     const response = await axiosInstance.post("/events/play", {
       songId: songId,
@@ -86,18 +70,21 @@ async function trackPlayEvent(songId) {
     setTimeout(() => {
       if (typeof window.refreshPersonalizedSection === "function") {
         window.refreshPersonalizedSection();
-      } else {
-        console.warn("refreshPersonalizedSection function not found");
       }
     }, 500); 
   } catch (error) {
     console.error("Error tracking play event:", error);
-    console.error("Error details:", error.response?.data);
   }
 }
 
 export async function playSong(songData, playlistArray = [], index = 0) {
   const requestId = ++lastPlayRequestId;
+  
+  if (isLoadingAudio) {
+    console.log("Hủy yêu cầu tải trước đó");
+  }
+  
+  isLoadingAudio = true;
   currentSong = songData;
   playlist = playlistArray;
   currentIndex = index;
@@ -105,70 +92,86 @@ export async function playSong(songData, playlistArray = [], index = 0) {
 
   showPlayer();
   updatePlayerInfo();
+  
   const audioUrl = songData.audioUrl || (await getAudioUrl(songData.id));
 
+  if (requestId !== lastPlayRequestId) {
+    console.log("Yêu cầu bị hủy");
+    return;
+  }
+
   if (!audioUrl) {
-    console.error("No audio URL found for song:", songData);
+    console.error("Không tìm thấy URL", songData);
+    isLoadingAudio = false;
     return;
   }
 
   initAudioPlayer();
 
-  try {
-    if (audioPlayer && !audioPlayer.paused) audioPlayer.pause();
-  } catch (e) {
-    console.warn("Error pausing previous audio:", e);
-  }
-
-  try {
-    audioPlayer.removeAttribute && audioPlayer.removeAttribute("src");
-    audioPlayer.src = "";
-    audioPlayer.load && audioPlayer.load();
-  } catch (e) {
-    console.warn("Error aborting previous load", e);
-  }
-
-  const playerEl = document.getElementById("music-player-footer");
+  const playerEl = document.querySelector("#music-player-footer");
   if (playerEl) playerEl.setAttribute("data-loading", "true");
-  audioPlayer.src = audioUrl;
+
   try {
-    audioPlayer.load && audioPlayer.load();
+    audioPlayer.pause();
+    audioPlayer.currentTime = 0;
   } catch (e) {
+    console.warn("Error stopping previous audio:", e);
   }
 
   if (requestId !== lastPlayRequestId) {
     if (playerEl) playerEl.removeAttribute("data-loading");
+    isLoadingAudio = false;
     return;
   }
+
+  audioPlayer.src = audioUrl;
+  
   try {
-    await awaitEvent(audioPlayer, "canplay", 4000);
+    audioPlayer.load();
   } catch (e) {
-    console.warn("[Player] canplay event timeout or error", e);
+    console.warn("Error loading audio:", e);
   }
 
   if (requestId !== lastPlayRequestId) {
     if (playerEl) playerEl.removeAttribute("data-loading");
+    isLoadingAudio = false;
+    return;
+  }
+
+  try {
+    await awaitEvent(audioPlayer, "canplay", 5000);
+  } catch (e) {
+    console.warn("Hết thời gian chờ", e);
+  }
+
+  if (requestId !== lastPlayRequestId) {
+    if (playerEl) playerEl.removeAttribute("data-loading");
+    isLoadingAudio = false;
     return;
   }
 
   try {
     await audioPlayer.play();
   } catch (err) {
-    console.warn("[Player] play() rejected, retrying after small delay", err);
+    console.error("Phát nhạc thất bại:", err);
+    
     try {
-      await new Promise((r) => setTimeout(r, 200));
+      await new Promise((r) => setTimeout(r, 100));
+      
       if (requestId !== lastPlayRequestId) {
         if (playerEl) playerEl.removeAttribute("data-loading");
+        isLoadingAudio = false;
         return;
       }
+      
       await audioPlayer.play();
     } catch (err2) {
-      console.error("[Player] final play failed after retry", err2);
-      if (playerEl) playerEl.removeAttribute("data-loading");
-      return;
+      console.error("Phát thất bại sau khi đã thử lại:", err2);
     }
   }
+
   if (playerEl) playerEl.removeAttribute("data-loading");
+  isLoadingAudio = false;
   updatePlayerInfo();
 }
 
@@ -177,7 +180,7 @@ async function getAudioUrl(songId) {
     const response = await axiosInstance.get(`/songs/stream/${songId}`);
     return response.data.audioUrl || response.data.url;
   } catch (error) {
-    console.error("Error getting audio URL:", error);
+    console.error("Lỗi URL âm thanh", error);
     return null;
   }
 }
@@ -193,7 +196,7 @@ function awaitEvent(target, eventName, timeout = 5000) {
       cleanup();
       resolve();
     }
-    target.addEventListener(eventName, onEvent);
+    target.addEventListener(eventName, onEvent, { once: true });
     timer = setTimeout(() => {
       cleanup();
       reject(new Error("timeout waiting for " + eventName));
@@ -207,7 +210,9 @@ export function togglePlay() {
   if (isPlaying) {
     audioPlayer.pause();
   } else {
-    audioPlayer.play();
+    audioPlayer.play().catch(err => {
+      console.error("Lỗi phát nhạc:", err);
+    });
   }
 }
 
@@ -225,12 +230,10 @@ export function playNext() {
 
 export function playPrevious() {
   if (playlist.length === 0) return;
-
-  if (currentTime > 3) {
+  if (currentTime > 5) {
     audioPlayer.currentTime = 0;
     return;
   }
-
   const prevIndex =
     currentIndex - 1 < 0 ? playlist.length - 1 : currentIndex - 1;
   playSong(playlist[prevIndex], playlist, prevIndex);
@@ -294,6 +297,7 @@ export function toggleMute() {
   localStorage.setItem("player_volume", String(volume));
   updateVolumeUI();
 }
+
 export function toggleRepeat() {
   isRepeat = !isRepeat;
   updateRepeatButton();
@@ -313,9 +317,9 @@ function formatTime(seconds) {
 
 function updatePlayerInfo() {
   if (!currentSong) return;
-  const thumbnail = document.getElementById("player-thumbnail");
-  const title = document.getElementById("player-title");
-  const artist = document.getElementById("player-artist");
+  const thumbnail = document.querySelector("#player-thumbnail");
+  const title = document.querySelector("#player-title");
+  const artist = document.querySelector("#player-artist");
 
   if (thumbnail) thumbnail.src = currentSong.thumbnails?.[0] || "";
   if (title) title.textContent = currentSong.title || "Unknown";
@@ -323,7 +327,7 @@ function updatePlayerInfo() {
 }
 
 function updatePlayButton() {
-  const btn = document.getElementById("play-pause-btn");
+  const btn = document.querySelector("#play-pause-btn");
   if (!btn) return;
   const icon = btn.querySelector("i");
   if (icon) {
@@ -334,9 +338,9 @@ function updatePlayButton() {
 }
 
 function updateProgressBar() {
-  const progressBar = document.getElementById("progress-bar");
-  const progressFill = document.getElementById("progress-fill");
-  const progressThumb = document.getElementById("progress-thumb");
+  const progressBar = document.querySelector("#progress-bar");
+  const progressFill = document.querySelector("#progress-fill");
+  const progressThumb = document.querySelector("#progress-thumb");
   if (progressBar && duration) {
     const percentage = (currentTime / duration) * 100;
     progressBar.value = percentage;
@@ -348,25 +352,25 @@ function updateProgressBar() {
     }
   }
 
-  const currentTimeEl = document.getElementById("current-time");
+  const currentTimeEl = document.querySelector("#current-time");
   if (currentTimeEl) {
     currentTimeEl.textContent = formatTime(currentTime);
   }
-  const durationEl = document.getElementById("duration-time");
+  const durationEl = document.querySelector("#duration-time");
   if (durationEl) {
     durationEl.textContent = formatTime(duration);
   }
 }
 
 function updateDuration() {
-  const durationEl = document.getElementById("duration-time");
+  const durationEl = document.querySelector("#duration-time");
   if (durationEl) {
     durationEl.textContent = formatTime(duration);
   }
 }
 
 function updateVolumeUI() {
-  const volumeBtn = document.getElementById("volume-btn");
+  const volumeBtn = document.querySelector("#volume-btn");
   const icon = volumeBtn?.querySelector("i");
 
   if (icon) {
@@ -379,14 +383,14 @@ function updateVolumeUI() {
     }
   }
 
-  const volumeSlider = document.getElementById("volume-slider");
+  const volumeSlider = document.querySelector("#volume-slider");
   if (volumeSlider) {
-    volumeSlider.value = 100 - volume;
+    volumeSlider.value = volume;
   }
 }
 
 function updateRepeatButton() {
-  const btn = document.getElementById("repeat-btn");
+  const btn = document.querySelector("#repeat-btn");
   if (btn) {
     if (isRepeat) {
       btn.classList.add("text-white");
@@ -399,7 +403,7 @@ function updateRepeatButton() {
 }
 
 function updateShuffleButton() {
-  const btn = document.getElementById("shuffle-btn");
+  const btn = document.querySelector("#shuffle-btn");
   if (btn) {
     if (isShuffle) {
       btn.classList.add("text-white");
@@ -412,11 +416,11 @@ function updateShuffleButton() {
 }
 
 function showPlayer() {
-  let playerEl = document.getElementById("music-player-footer");
+  let playerEl = document.querySelector("#music-player-footer");
 
   if (!playerEl) {
     createPlayer();
-    playerEl = document.getElementById("music-player-footer");
+    playerEl = document.querySelector("#music-player-footer");
   }
 
   if (playerEl) {
@@ -428,16 +432,21 @@ function createPlayer() {
   const playerHTML = `
     <div id="music-player-footer" class="fixed bottom-0 left-0 right-0 bg-black z-50 hidden">
       <div id="progress-container"
-         class="relative h-1 bg-gray-800 cursor-pointer group rounded-full">
-      <div id="progress-fill"
-         class="absolute left-0 top-0 h-full w-0 bg-red-500 rounded-full
-         transition-colors group-hover:bg-red-600">
-      </div>
-      <div id="progress-thumb"
-         class="absolute top-1/2 left-0 w-3 h-3 bg-red-500 rounded-full
-         -translate-x-1/2 -translate-y-1/2 opacity-100 transition-colors
-         group-hover:bg-red-600">
-      </div>
+         class="relative h-1 bg-white cursor-pointer group">
+        <div id="progress-fill"
+           class="absolute left-0 top-0 h-full w-0 bg-red-500
+           transition-colors group-hover:bg-red-600">
+        </div>
+        <div id="progress-thumb"
+           class="absolute top-1/2 left-0 w-3 h-3 bg-red-500 rounded-full
+           -translate-x-1/2 -translate-y-1/2 opacity-100 transition-colors
+           group-hover:bg-red-600">
+        </div>
+        <div id="progress-tooltip"
+           class="absolute bottom-full left-0 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded
+           pointer-events-none opacity-0 transition-opacity -translate-x-1/2 whitespace-nowrap">
+          0:00
+        </div>
         <input type="range" id="progress-bar" min="0" max="100" value="0"
            class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10">
       </div>
@@ -461,7 +470,7 @@ function createPlayer() {
             class="w-9 h-9 bg-white rounded-full flex items-center justify-center transition cursor-pointer">
             <i class="fas fa-play text-black text-xl ml-0.5"></i>
           </button>
-          <button id="next-btn" class="text-white  transition">
+          <button id="next-btn" class="text-white transition">
             <i class="fas fa-step-forward text-2xl cursor-pointer"></i>
           </button>
           <button id="repeat-btn" class="text-gray-400 hover:text-white transition cursor-pointer">
@@ -480,17 +489,15 @@ function createPlayer() {
           <button class="text-white hover:text-gray-300 transition cursor-pointer">
             <i class="far fa-thumbs-up text-xl"></i>
           </button>
-      <div class="flex items-center gap-2 group relative">
-          <button id="volume-btn"
-               class="text-white hover:text-gray-300 transition cursor-pointer">
-            <i class="fas fa-volume-up text-xl"></i>
-          </button>
-        <div class="hidden group-hover:block hover:block absolute bottom-full right-0 bottom
-                 bg-gray-800 rounded-lg p-3 shadow-xl">
-          <input type="range" id="volume-slider" min="0" max="100" value="100" orient="vertical"
-             class="h-24 appearance-none bg-gray-700 rounded-lg cursor-pointer slider-vertical"/>
-        </div>
-      </div>
+          <div class="flex items-center gap-2">
+            <button id="volume-btn"
+                 class="text-white hover:text-gray-300 transition cursor-pointer">
+              <i class="fas fa-volume-up text-xl"></i>
+            </button>
+            <input type="range" id="volume-slider" min="0" max="100" value="100"
+               class="w-24 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer
+                      slider-thumb:w-3 slider-thumb:h-3 slider-thumb:bg-white slider-thumb:rounded-full"/>
+          </div>
           <button class="text-white hover:text-gray-300 transition cursor-pointer">
             <i class="fas fa-ellipsis-h text-xl"></i>
           </button>
@@ -501,43 +508,68 @@ function createPlayer() {
   document.body.insertAdjacentHTML("beforeend", playerHTML);
   attachEventListeners();
   updateVolumeUI();
+  setupProgressHover();
+}
+
+function setupProgressHover() {
+  const progressContainer = document.querySelector("#progress-container");
+  const progressBar = document.querySelector("#progress-bar");
+  const tooltip = document.querySelector("#progress-tooltip");
+  
+  if (!progressContainer || !progressBar || !tooltip) return;
+
+  progressContainer.addEventListener("mousemove", (e) => {
+    if (!duration) return;
+    
+    const rect = progressContainer.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const percentage = Math.max(0, Math.min(100, (x / rect.width) * 100));
+    const time = (percentage / 100) * duration;
+    
+    tooltip.textContent = formatTime(time);
+    tooltip.style.left = `${x}px`;
+    tooltip.style.opacity = "1";
+  });
+
+  progressContainer.addEventListener("mouseleave", () => {
+    tooltip.style.opacity = "0";
+  });
 }
 
 function attachEventListeners() {
-  document.getElementById("play-pause-btn")?.addEventListener("click", () => {
+  document.querySelector("#play-pause-btn")?.addEventListener("click", () => {
     togglePlay();
   });
 
-  document.getElementById("prev-btn")?.addEventListener("click", () => {
+  document.querySelector("#prev-btn")?.addEventListener("click", () => {
     playPrevious();
   });
 
-  document.getElementById("next-btn")?.addEventListener("click", () => {
+  document.querySelector("#next-btn")?.addEventListener("click", () => {
     playNext();
   });
 
-  const progressBar = document.getElementById("progress-bar");
+  const progressBar = document.querySelector("#progress-bar");
   progressBar?.addEventListener("input", (e) => {
     const time = (e.target.value / 100) * duration;
     seek(time);
   });
 
-  const volumeSlider = document.getElementById("volume-slider");
+  const volumeSlider = document.querySelector("#volume-slider");
   volumeSlider?.addEventListener("input", (e) => {
-    const raw = parseInt(e.target.value) || 0;
-    const newVol = 100 - raw;
+    const newVol = parseInt(e.target.value) || 0;
     setVolume(newVol);
   });
 
-  document.getElementById("volume-btn")?.addEventListener("click", () => {
+  document.querySelector("#volume-btn")?.addEventListener("click", () => {
     toggleMute();
   });
 
-  document.getElementById("repeat-btn")?.addEventListener("click", () => {
+  document.querySelector("#repeat-btn")?.addEventListener("click", () => {
     toggleRepeat();
   });
 
-  document.getElementById("shuffle-btn")?.addEventListener("click", () => {
+  document.querySelector("#shuffle-btn")?.addEventListener("click", () => {
     toggleShuffle();
   });
 }

@@ -1,6 +1,7 @@
 import { Header } from "../components/header";
 import { Sidebar } from "../components/sidebar";
 import { initSidebarToggle } from "./home";
+import { initSearchHandler } from "../utils/initSearchHandler";
 
 let router = null;
 export const setMetaPageRouter = (routerInstance) => {
@@ -353,4 +354,5 @@ export const MetaPage = () => {
     }
   }, 0);
   initSidebarToggle();
+  initSearchHandler();
 };

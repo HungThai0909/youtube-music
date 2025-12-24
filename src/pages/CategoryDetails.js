@@ -1,6 +1,7 @@
 import { Header } from "../components/header";
 import { Sidebar } from "../components/sidebar";
 import { initSidebarToggle } from "./home";
+import { initSearchHandler } from "../utils/initSearchHandler";
 
 let currentRouter = null;
 export const CategoryDetail = (match) => {
@@ -26,6 +27,7 @@ export const CategoryDetail = (match) => {
   `;
 
   initSidebarToggle();
+  initSearchHandler();
   loadCategoryDetail(categorySlug);
 };
 
