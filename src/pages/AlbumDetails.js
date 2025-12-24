@@ -10,12 +10,12 @@ export const AlbumDetail = (match) => {
     ${Header()}
     <div class="flex pt-[64px]">
       <div class="w-22">${Sidebar()}</div>
-      <main class="flex-1 bg-gray-900 overflow-y-auto h-[calc(100vh-64px)]">
+      <main class="flex-1 ">
         <div id="album-loading-overlay"
           class="fixed inset-0 z-[100] bg-black/60 flex flex-col items-center justify-center">
           <div class="w-16 h-16 border-4 border-gray-700 border-t-white rounded-full animate-spin"></div>
         </div>
-        <div class="px-12 py-8 max-w-[1800px] mx-auto">
+        <div class="px-12 py-8 max-w-[1400px] mx-auto">
           <div id="album-hero"></div>
         </div>
       </main>
@@ -43,7 +43,6 @@ async function loadAlbumDetail(slug) {
 
 async function fetchAlbum(slug) {
   const url = `${import.meta.env.VITE_BASE_URL}/albums/details/${slug}?limit=50`;
-  console.log("Fetching:", url);
   const res = await fetch(url);
   if (!res.ok) throw new Error("Fetch failed");
   return res.json();

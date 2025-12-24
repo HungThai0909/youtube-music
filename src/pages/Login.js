@@ -139,16 +139,31 @@ function initLoginPage() {
       const data = response.data;
       localStorage.setItem("access_token", data.access_token);
       localStorage.setItem("refresh_token", data.refresh_token);
-      localStorage.setItem("currentUser", JSON.stringify(data.user));
+      try {
+        const me = await api.get("/auth/me");
+        if (me?.data) {
+          localStorage.setItem("currentUser", JSON.stringify(me.data));
+        } else if (data.user) {
+          localStorage.setItem("currentUser", JSON.stringify(data.user));
+        }
+      } catch (e) {
+        console.warn(
+          "Could not fetch /auth/me after login",
+          e?.response?.status,
+          e?.response?.data
+        );
+        if (data.user) {
+          localStorage.setItem("currentUser", JSON.stringify(data.user));
+        }
+      }
 
       showNotification("Đăng nhập thành công!", "success");
       setTimeout(() => {
         window.location.href = "/";
-      }, 1500);
+      }, 1200);
     } catch (err) {
       console.error(err);
-      const message =
-        err?.response?.data?.message || "Email hoặc mật khẩu không đúng!";
+      const message = "Email hoặc mật khẩu không đúng!";
       showNotification(message, "error");
     }
   });

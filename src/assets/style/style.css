@@ -1,3 +1,55 @@
 @import "tailwindcss";
 @import "@fortawesome/fontawesome-free/css/all.min.css";
 
+html,
+body {
+  @apply bg-gray-900 overflow-y-auto;
+}
+
+@layer components {
+  .slider-vertical {
+    writing-mode: bt-lr;
+    -webkit-appearance: slider-vertical;
+    appearance: slider-vertical;
+
+    @apply
+    w-2
+    h-[100px]
+    bg-gray-700
+    rounded-full
+    cursor-pointer
+    relative;
+  }
+
+  .slider-vertical::-webkit-slider-runnable-track {
+    @apply w-full h-full bg-gray-700 rounded-full;
+  }
+  .slider-vertical::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+
+    @apply
+    w-4
+    h-4
+    bg-white
+    rounded-full
+    cursor-pointer
+    shadow-md
+    -ml-1;
+  }
+
+  .slider-vertical::-moz-range-track {
+    @apply w-full h-full bg-gray-700 rounded-full;
+  }
+
+  .slider-vertical::-moz-range-thumb {
+    @apply
+    w-4
+    h-4
+    bg-white
+  rounded-full
+    cursor-pointer
+    border-none;
+    transform: translateX(-50%);
+  }
+}

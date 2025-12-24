@@ -42,13 +42,11 @@ export function initSearchHandler() {
       const response = await api.get("/search/suggestions", {
         params: { q: query },
       });
-      console.log("Suggestions response:", response.data);
       return {
         suggestions: response.data?.suggestions || [],
         completed: response.data?.completed || []
       };
     } catch (error) {
-      console.error("Error fetching suggestions:", error);
       return { suggestions: [], completed: [] };
     }
   };
@@ -62,7 +60,6 @@ export function initSearchHandler() {
       }
       return response.data || {};
     } catch (error) {
-      console.error("Error fetching search results:", error);
       return {};
     }
   };
@@ -73,19 +70,14 @@ export function initSearchHandler() {
     const filteredSuggestions = suggestions.filter(item => {
       const itemLower = item.toLowerCase();
       const matches = itemLower.startsWith(query);
-      console.log(`"${item}" starts with "${query}"? ${matches}`);
       return matches;
     });
     
     const filteredCompleted = completed.filter(item => {
       const titleLower = item.title.toLowerCase();
       const matches = titleLower.startsWith(query);
-      console.log(`"${item.title}" starts with "${query}"? ${matches}`);
       return matches;
     });
-    
-    console.log("Filtered suggestions:", filteredSuggestions);
-    console.log("Filtered completed:", filteredCompleted);
     
     if (!filteredSuggestions.length && !filteredCompleted.length) {
       searchSuggestions.classList.add("hidden");
@@ -161,13 +153,9 @@ export function initSearchHandler() {
   };
 
   const renderSearchResults = (data) => {
-    console.log("=== RENDERING SEARCH RESULTS ===");
-    console.log("Full data:", data);
-    
     const results = data.results || [];
     
     if (!results || results.length === 0) {
-      console.log("NO RESULTS FOUND");
       hideAllSections();
       searchNoResults.classList.remove("hidden");
       return;
@@ -178,13 +166,6 @@ export function initSearchHandler() {
     const playlists = results.filter(item => item.type === 'playlist');
     const artists = results.filter(item => item.type === 'artist');
     const videos = results.filter(item => item.type === 'video');
-    
-    console.log("Filtered results:");
-    console.log("- Songs:", songs.length);
-    console.log("- Albums:", albums.length);
-    console.log("- Playlists:", playlists.length);
-    console.log("- Artists:", artists.length);
-    console.log("- Videos:", videos.length);
     
     let html = "";
 

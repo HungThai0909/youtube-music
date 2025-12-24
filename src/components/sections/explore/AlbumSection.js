@@ -147,9 +147,6 @@ export const AlbumSection = {
       container.innerHTML = "";
       if (this.albums.length === 0) return resolve();
       
-      console.log("Rendering albums:", this.albums.length);
-      console.log("Router available:", !!this.router);
-      
       let loadedImages = 0;
       const checkAllLoaded = () => {
         loadedImages++;
@@ -184,7 +181,6 @@ export const AlbumSection = {
         card.addEventListener("click", (e) => {
           e.preventDefault();
           e.stopPropagation();
-          console.log("Album card clicked:", album.name);
           this.navigateToAlbum(album);
         });
         const img = card.querySelector("img");
@@ -196,22 +192,16 @@ export const AlbumSection = {
   },
 
   navigateToAlbum(album) {
-    console.log("navigateToAlbum called with:", album);
-    console.log("Router:", this.router);
     const slug = album.slug || album.id;
     if (!slug) {
-      console.error("No slug found for album:", album);
       return;
     }
     if (!this.router) {
-      console.error("Router not initialized! Please call AlbumSection.setRouter(router) first");
       return;
     }
     const url = `/album/details/${slug}`;
-    console.log("Navigating to:", url);
     try {
       this.router.navigate(url);
-      console.log("Navigation completed");
     } catch (error) {
       console.error("Navigation error:", error);
     }

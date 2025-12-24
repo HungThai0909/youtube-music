@@ -157,13 +157,10 @@ export const LineAlbumSection = {
     return new Promise((resolve) => {
       const container = document.querySelector("#line-albums-container");
       if (!container) {
-        console.error("Line albums container not found");
         return resolve();
       }
       container.innerHTML = "";
       if (this.albums.length === 0) return resolve();
-      console.log("Rendering line albums:", this.albums.length);
-      console.log("Router available:", !!this.router);
       let loadedImages = 0;
       const checkAllLoaded = () => {
         loadedImages++;
@@ -197,7 +194,6 @@ export const LineAlbumSection = {
         card.addEventListener("click", (e) => {
           e.preventDefault();
           e.stopPropagation();
-          console.log("Line album card clicked:", album.name || album.title);
           this.navigateToAlbum(album);
         });
         const img = card.querySelector("img");
@@ -209,8 +205,6 @@ export const LineAlbumSection = {
   },
 
   navigateToAlbum(album) {
-    console.log("navigateToAlbum called with:", album);
-    console.log("Router:", this.router);
     const slug = album.slug || album.id || album._id;
     if (!slug) {
       console.error("No slug found for album:", album);
@@ -223,10 +217,8 @@ export const LineAlbumSection = {
       return;
     }
     const url = `/album/details/${slug}`;
-    console.log("Navigating to:", url);
     try {
       this.router.navigate(url);
-      console.log("Navigation completed");
     } catch (error) {
       console.error("Navigation error:", error);
     }

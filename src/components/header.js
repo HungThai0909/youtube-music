@@ -43,24 +43,16 @@ export const Header = () => {
             <i class="fas fa-times"></i>
           </button>
         </div>
-        
-        <!-- Search Results Dropdown -->
         <div id="searchResults" class="hidden absolute top-full mt-2 w-full bg-gray-900 rounded-lg shadow-2xl overflow-hidden max-h-[600px] overflow-y-auto">
-          <!-- Loading state -->
           <div id="searchLoading" class="hidden p-4 text-center text-gray-400">
             <i class="fas fa-spinner fa-spin mr-2"></i>Đang tìm kiếm...
           </div>
           
-          <!-- Suggestions -->
           <div id="searchSuggestions" class="hidden">
             <div class="px-4 py-2 text-xs text-gray-500 uppercase font-semibold">Gợi ý</div>
             <div id="suggestionsList"></div>
           </div>
-          
-          <!-- Results -->
           <div id="searchContent" class="hidden"></div>
-          
-          <!-- No results -->
           <div id="searchNoResults" class="hidden p-8 text-center text-gray-400">
             Không tìm thấy kết quả
           </div>

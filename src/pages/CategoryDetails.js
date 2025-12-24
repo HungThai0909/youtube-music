@@ -10,12 +10,12 @@ export const CategoryDetail = (match) => {
     ${Header()}
     <div class="flex pt-[64px]">
       <div class="w-22">${Sidebar()}</div>
-      <main class="flex-1 bg-gray-900 overflow-y-auto h-[calc(100vh-64px)]">
+      <main class="flex-1">
         <div id="category-loading-overlay"
           class="fixed inset-0 z-[100] bg-black/60 flex flex-col items-center justify-center transition-opacity duration-300">
           <div class="w-16 h-16 border-4 border-gray-700 border-t-white rounded-full animate-spin"></div>
         </div>
-        <div class="px-6 py-8 max-w-[1800px] mx-auto">
+        <div class="px-6 py-8 max-w-[1400px] mx-auto">
         <div class="pl-24">
         <div id="category-header" class="mb-8"></div>
         <div id="category-subcategories" class="min-h-[360px]"></div>
@@ -75,7 +75,6 @@ async function waitForImagesToLoad(container) {
 
 async function fetchCategory(slug) {
   const url = `${import.meta.env.VITE_BASE_URL}/categories/${slug}`;
-  console.log("Fetching category:", url);
   const res = await fetch(url);
   if (!res.ok) throw new Error("Fetch failed");
   return res.json();

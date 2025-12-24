@@ -2,6 +2,7 @@ import { Content } from "../components/Content";
 import { Header } from "../components/header";
 import { Sidebar } from "../components/sidebar";
 import { initSearchHandler } from "../utils/initSearchHandler";
+import { PersonalizedSection } from "../components/sections/home/PersonalizedSection";
 import "../assets/style/style.css";
 import api from "../axios";
 
@@ -11,12 +12,46 @@ export const home = () => {
     ${Header()}
     <div class="flex pt-[64px]">
       <div class="w-22">${Sidebar()}</div> 
-      <main class="flex-1 overflow-y-auto h-[calc(100vh-64px)]">
+      <main class="flex-1 max-w-[1400] pb-28">
         ${Content()}
       </main>
     </div>
   `;
   initSidebarToggle();
+  setTimeout(() => {
+    const token = localStorage.getItem("access_token");
+    if (token) {
+      PersonalizedSection.init();
+    } else {
+      console.log("Người dùng chưa đăng nhập");
+    }
+  }, 100);
+  (async () => {
+    const token = localStorage.getItem("access_token");
+    if (!token) return;
+    try {
+      const res = await api.get("/auth/me");
+      if (res?.data) {
+        localStorage.setItem("currentUser", JSON.stringify(res.data));
+        const userButton = document.querySelector("#userButton");
+        if (userButton) {
+          const initial =
+            (res.data.name || "").split(/\s+/)[0]?.charAt(0)?.toUpperCase() ||
+            "";
+          userButton.textContent = initial;
+        }
+        const nameEls = document.querySelectorAll(".sidebar-user-name");
+        nameEls.forEach((el) => {
+          el.textContent = res.data.name || el.textContent;
+        });
+      }
+    } catch (e) {
+      console.warn(
+        "Could not refresh /auth/me on home load",
+        e?.response?.status
+      );
+    }
+  })();
   initSearchHandler();
 };
 
@@ -252,10 +287,15 @@ function initSidebarToggle() {
               window.location.href = "/login";
             }, 700);
           } else {
-            createNotification(
-              "Không thể tải thông tin mới. Vui lòng thử lại sau.",
-              "error"
-            );
+            const message =
+              err?.response?.data?.message ||
+              "Không thể tải thông tin mới. Vui lòng thử lại sau.";
+            const text =
+              window.normalizeMessage?.(
+                message,
+                "Không thể tải thông tin mới. Vui lòng thử lại sau."
+              ) || message;
+            createNotification(text, "error");
           }
         }
       })();
@@ -358,7 +398,10 @@ function initSidebarToggle() {
             }
 
             const message = err?.response?.data?.message || "Cập nhật thất bại";
-            createNotification(message, "error");
+            const text =
+              window.normalizeMessage?.(message, "Cập nhật thất bại") ||
+              message;
+            createNotification(text, "error");
           }
         });
       }
@@ -558,7 +601,9 @@ function initSidebarToggle() {
             } else {
               const msg =
                 err?.response?.data?.message || "Đổi mật khẩu thất bại";
-              createNotification(msg, "error");
+              const text =
+                window.normalizeMessage?.(msg, "Đổi mật khẩu thất bại") || msg;
+              createNotification(text, "error");
             }
           }
         });

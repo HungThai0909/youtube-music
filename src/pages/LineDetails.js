@@ -32,8 +32,8 @@ export const LineDetail = (match) => {
     ${Header()}
     <div class="flex pt-[64px]">
       <div class="w-22">${Sidebar()}</div>
-      <main class="flex-1 bg-gray-900 overflow-y-auto h-[calc(100vh-64px)]">
-        <div class="px-6 py-8 max-w-[1800px] mx-auto">
+      <main class="flex-1">
+        <div class="px-6 py-8 max-w-[1400px] mx-auto">
           <div class="pl-24">
             <section class="mb-24 mt-30">${LineSongSection.render()}</section>
             <section class="mb-24">${LinePlaylistSection.render()}</section>
