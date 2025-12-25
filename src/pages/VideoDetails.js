@@ -2,7 +2,11 @@ import { Header } from "../components/header";
 import { Sidebar } from "../components/sidebar";
 import { initSidebarToggle } from "./home";
 import { initSearchHandler } from "../utils/initSearchHandler";
-import { playSong, syncWithYouTubePlayer, stopAudioPlayback } from "../utils/Playbar";
+import {
+  playSong,
+  syncWithYouTubePlayer,
+  stopAudioPlayback,
+} from "../utils/Playbar";
 
 let currentRouter = null;
 let player = null;
@@ -55,16 +59,18 @@ function startMainPlayerVolumeMonitoring() {
   if (mainPlayerVolumeCheckInterval) {
     clearInterval(mainPlayerVolumeCheckInterval);
   }
-  
+
   mainPlayerVolumeCheckInterval = setInterval(() => {
     if (!player || !player.getVolume) return;
-    
+
     try {
       const volume = Math.round(player.getVolume());
       const isMuted = player.isMuted();
-      document.dispatchEvent(new CustomEvent('mainPlayerVolumeChanged', {
-        detail: { volume, isMuted }
-      }));
+      document.dispatchEvent(
+        new CustomEvent("mainPlayerVolumeChanged", {
+          detail: { volume, isMuted },
+        })
+      );
     } catch (e) {
       console.warn("[Main Player Volume Monitor] Error:", e);
     }
@@ -117,13 +123,13 @@ function createYouTubePlayer(videoId, containerId = "youtube-player") {
 
 function syncModalPlayerWithMainPlayer() {
   if (!player || !modalPlayer) return;
-  
+
   try {
     const mainState = player.getPlayerState();
     const mainTime = player.getCurrentTime();
-    
+
     modalPlayer.seekTo(mainTime, true);
-    
+
     if (mainState === 1) {
       modalPlayer.playVideo();
     } else {
@@ -131,7 +137,7 @@ function syncModalPlayerWithMainPlayer() {
     }
     const mainVolume = player.getVolume();
     const mainIsMuted = player.isMuted();
-    
+
     modalPlayer.setVolume(mainVolume);
     if (mainIsMuted) {
       modalPlayer.mute();
@@ -145,22 +151,22 @@ function syncModalPlayerWithMainPlayer() {
 
 function syncMainPlayerWithModalPlayer() {
   if (!player || !modalPlayer) return;
-  
+
   try {
     const modalState = modalPlayer.getPlayerState();
     const modalTime = modalPlayer.getCurrentTime();
-    
+
     player.seekTo(modalTime, true);
-    
+
     if (modalState === 1) {
       player.playVideo();
     } else {
       player.pauseVideo();
     }
-    
+
     const modalVolume = modalPlayer.getVolume();
     const modalIsMuted = modalPlayer.isMuted();
-    
+
     player.setVolume(modalVolume);
     if (modalIsMuted) {
       player.mute();
@@ -173,8 +179,9 @@ function syncMainPlayerWithModalPlayer() {
 }
 
 function onPlayerReady(event, containerId) {
-  const playerInstance = containerId === "youtube-player" ? player : modalPlayer;
-  
+  const playerInstance =
+    containerId === "youtube-player" ? player : modalPlayer;
+
   if (containerId === "youtube-player") {
     if (playerInstance && typeof syncWithYouTubePlayer === "function") {
       stopAudioPlayback();
@@ -182,7 +189,24 @@ function onPlayerReady(event, containerId) {
     }
   } else if (containerId === "modal-youtube-player") {
     setTimeout(() => {
-      syncModalPlayerWithMainPlayer();
+      try {
+        stopAudioPlayback();
+      } catch (e) {}
+      try {
+        if (player && player.pauseVideo) player.pauseVideo();
+      } catch (e) {
+        console.warn("[Modal Open] Error pausing main player:", e);
+      }
+      if (modalPlayer && typeof syncWithYouTubePlayer === "function") {
+        syncWithYouTubePlayer(modalPlayer, currentVideoData, currentVideos);
+        try {
+          if (modalPlayer.playVideo) modalPlayer.playVideo();
+        } catch (e) {
+          console.warn("[Modal Open] Error starting modal playback:", e);
+        }
+      } else {
+        syncModalPlayerWithMainPlayer();
+      }
     }, 100);
   }
 }
@@ -396,7 +420,22 @@ function setupModalEventListeners() {
   });
   document.addEventListener("playerModalClosed", () => {
     if (modalPlayer && player) {
-      syncMainPlayerWithModalPlayer();
+      try {
+        if (typeof syncWithYouTubePlayer === "function") {
+          syncWithYouTubePlayer(player, currentVideoData, currentVideos);
+        } else {
+          syncMainPlayerWithModalPlayer();
+        }
+        if (player && player.playVideo) player.playVideo();
+      } catch (e) {
+        console.warn("[Modal Close] Error resuming main player:", e);
+      }
+    
+      try {
+        if (modalPlayer && modalPlayer.pauseVideo) modalPlayer.pauseVideo();
+      } catch (e) {
+        console.warn("[Modal Close] Error pausing modal player:", e);
+      }
     }
   });
 }

@@ -239,7 +239,6 @@ export const PersonalizedSection = {
             } else if (type === "category") {
               this.router.navigate(`/category/${slug}`);
             } else {
-              // default fallback
               this.router.navigate(`/playlist/details/${slug}`);
             }
           });
