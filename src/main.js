@@ -20,6 +20,7 @@ import { Charts, setChartsRouter } from "./pages/Charts";
 import { MetaPage, setMetaPageRouter } from "./pages/MetaPage";
 import { LineDetail, setLineDetailRouter } from "./pages/LineDetails";
 import { SongDetail, setSongDetailRouter } from "./pages/SongDetails";
+import { VideoDetail, setVideoDetailRouter } from "./pages/VideoDetails";
 
 import Navigo from "navigo";
 const router = new Navigo("/");
@@ -43,6 +44,7 @@ setNewReleasesRouter(router);
 setChartsRouter(router);
 setMetaPageRouter(router);
 setSongDetailRouter(router);
+setVideoDetailRouter(router);
 
 router
   .on("/", home)
@@ -58,6 +60,7 @@ router
   .on("/category/:id", CategoryDetail)
   .on("/line/:id", LineDetail)
   .on("/song/details/:id", SongDetail)
+  .on("/video/details/:id", VideoDetail)
   .on("/profile", () => {
     if (window.location.pathname !== "/") {
       home();
