@@ -323,7 +323,13 @@ function initSidebarToggle() {
       };
 
       function close() {
-        overlay.remove();
+        try {
+          document.querySelectorAll(
+              "#profileModalOverlay, #changePasswordModalOverlay")
+            .forEach((o) => o.remove());
+        } catch (e) {
+          console.warn("Error closing profile modals:", e);
+        }
       }
       let pointerStartedOnOverlay = false;
       overlay.addEventListener("pointerdown", (ev) => {
@@ -580,7 +586,15 @@ function initSidebarToggle() {
       };
 
       function close() {
-        overlay.remove();
+        try {
+          document
+            .querySelectorAll(
+              "#profileModalOverlay, #changePasswordModalOverlay"
+            )
+            .forEach((o) => o.remove());
+        } catch (e) {
+          console.warn("Error closing profile modals:", e);
+        }
       }
       let pointerStartedOnOverlay = false;
       overlay.addEventListener("pointerdown", (ev) => {

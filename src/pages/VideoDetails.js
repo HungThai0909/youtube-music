@@ -1,7 +1,8 @@
 import { Header } from "../components/header";
 import { Sidebar } from "../components/sidebar";
 import { initSidebarToggle } from "./home";
-import { playSong, syncWithYouTubePlayer, stopAudioPlayback } from "../components/Playbar";
+import { initSearchHandler } from "../utils/initSearchHandler";
+import { playSong, syncWithYouTubePlayer, stopAudioPlayback } from "../utils/Playbar";
 
 let currentRouter = null;
 let player = null;
@@ -32,6 +33,7 @@ export const VideoDetail = (match) => {
   initSidebarToggle();
   loadYouTubeAPI();
   loadVideoDetail(videoId);
+  initSearchHandler();
 };
 
 export const setVideoDetailRouter = (router) => {
@@ -42,25 +44,25 @@ function loadYouTubeAPI() {
   if (window.YT && window.YT.Player) {
     return;
   }
-  const tag = document.createElement('script');
-  tag.src = 'https://www.youtube.com/iframe_api';
-  const firstScriptTag = document.getElementsByTagName('script')[0];
+  const tag = document.createElement("script");
+  tag.src = "https://www.youtube.com/iframe_api";
+  const firstScriptTag = document.getElementsByTagName("script")[0];
   firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
 }
 
-function createYouTubePlayer(videoId, containerId = 'youtube-player') {
+function createYouTubePlayer(videoId, containerId = "youtube-player") {
   if (!window.YT || !window.YT.Player) {
     setTimeout(() => createYouTubePlayer(videoId, containerId), 100);
     return;
   }
-  if (containerId === 'youtube-player' && player) {
+  if (containerId === "youtube-player" && player) {
     player.destroy();
-  } else if (containerId === 'modal-youtube-player' && modalPlayer) {
+  } else if (containerId === "modal-youtube-player" && modalPlayer) {
     modalPlayer.destroy();
   }
   const newPlayer = new YT.Player(containerId, {
-    height: '100%',
-    width: '100%',
+    height: "100%",
+    width: "100%",
     videoId: videoId,
     playerVars: {
       autoplay: 0,
@@ -69,12 +71,12 @@ function createYouTubePlayer(videoId, containerId = 'youtube-player') {
       rel: 0,
     },
     events: {
-      'onReady': (e) => onPlayerReady(e, containerId),
-      'onStateChange': (e) => onPlayerStateChange(e, containerId)
-    }
+      onReady: (e) => onPlayerReady(e, containerId),
+      onStateChange: (e) => onPlayerStateChange(e, containerId),
+    },
   });
 
-  if (containerId === 'youtube-player') {
+  if (containerId === "youtube-player") {
     player = newPlayer;
   } else {
     modalPlayer = newPlayer;
@@ -84,15 +86,17 @@ function createYouTubePlayer(videoId, containerId = 'youtube-player') {
 }
 
 function onPlayerReady(event, containerId) {
-  const playerInstance = containerId === 'youtube-player' ? player : modalPlayer;
-  if (playerInstance && typeof syncWithYouTubePlayer === 'function') {
+  const playerInstance =
+    containerId === "youtube-player" ? player : modalPlayer;
+  if (playerInstance && typeof syncWithYouTubePlayer === "function") {
     stopAudioPlayback();
     syncWithYouTubePlayer(playerInstance, currentVideoData, currentVideos);
   }
 }
 
 function onPlayerStateChange(event, containerId) {
-  const playerInstance = containerId === 'youtube-player' ? player : modalPlayer;
+  const playerInstance =
+    containerId === "youtube-player" ? player : modalPlayer;
   if (event.data === 0) {
     playNextVideo();
   }
@@ -100,12 +104,15 @@ function onPlayerStateChange(event, containerId) {
 
 function playNextVideo() {
   if (currentVideos.length === 0) return;
-  const currentIndex = currentVideos.findIndex(v => v.id === currentVideoData?.id);
+  const currentIndex = currentVideos.findIndex(
+    (v) => v.id === currentVideoData?.id
+  );
   const nextIndex = (currentIndex + 1) % currentVideos.length;
   const nextVideo = currentVideos[nextIndex];
   if (nextVideo && nextVideo.videoId) {
     loadVideoInPlayer(nextVideo.videoId);
     updateHero(nextVideo);
+    updateVideoSelection(nextIndex);
     currentVideoData = nextVideo;
   }
 }
@@ -134,10 +141,11 @@ async function loadVideoDetail(id) {
     if (!Array.isArray(relatedVideos)) relatedVideos = [];
     const playlists = videoData.playlists || [];
     const map = new Map();
+
     if (videoData?.id) {
       map.set(videoData.id, videoData);
     }
-    
+
     relatedVideos.forEach((v) => v?.id && map.set(v.id, v));
     playlists.forEach((pl) =>
       (pl.tracks || []).forEach(
@@ -154,7 +162,7 @@ async function loadVideoDetail(id) {
         createYouTubePlayer(videoData.videoId);
       }, 100);
     }
-    
+
     hideLoading();
   } catch (err) {
     console.error(err);
@@ -182,9 +190,11 @@ function renderVideosList(videos) {
             (v, i) => `
           <div
             class="video-item group flex items-center gap-4 py-3 px-4
-                   rounded-lg hover:bg-gray-800 cursor-pointer transition ${i === 0 ? 'bg-white/10' : ''}"
+                   rounded-lg hover:bg-gray-800 cursor-pointer transition ${
+                     i === 0 ? "bg-white/10" : ""
+                   }"
             data-video-index="${i}"
-            data-video-id="${v.videoId || ''}"
+            data-video-id="${v.videoId || ""}"
           >
             <span class="text-gray-400 w-8 text-lg font-medium">
               ${i + 1}
@@ -207,7 +217,9 @@ function renderVideosList(videos) {
             </div>
 
             <div class="flex-1 min-w-0">
-              <h3 class="text-white font-medium truncate ${i === 0 ? 'text-cyan-400' : ''}">
+              <h3 class="text-white font-medium truncate ${
+                i === 0 ? "text-cyan-400" : ""
+              }">
                 ${v.title}
               </h3>
               <p class="text-gray-400 text-xs truncate">
@@ -278,6 +290,40 @@ async function renderHero(data, combinedVideos) {
 
   setupVideoClickHandlers(data, combinedVideos);
   setupActionButtons(data, combinedVideos);
+  document.addEventListener("modalVideoChanged", handleModalVideoChange);
+}
+
+function handleModalVideoChange(event) {
+  const { index } = event.detail;
+  const video = currentVideos[index];
+  if (!video) return;
+
+  currentVideoData = video;
+  updateHero(video);
+  updateVideoSelection(index);
+
+  if (video.videoId) {
+    stopAudioPlayback();
+    loadVideoInPlayer(video.videoId);
+  }
+
+  if (player && typeof syncWithYouTubePlayer === "function") {
+    syncWithYouTubePlayer(player, video, currentVideos);
+  }
+}
+
+function updateVideoSelection(index) {
+  document.querySelectorAll(".video-item").forEach((el, i) => {
+    if (i === index) {
+      el.classList.add("bg-white/10");
+      const title = el.querySelector("h3");
+      if (title) title.classList.add("text-cyan-400");
+    } else {
+      el.classList.remove("bg-white/10");
+      const title = el.querySelector("h3");
+      if (title) title.classList.remove("text-cyan-400");
+    }
+  });
 }
 
 function setupVideoClickHandlers(currentVideo, videos) {
@@ -287,32 +333,32 @@ function setupVideoClickHandlers(currentVideo, videos) {
       const videoId = item.dataset.videoId;
       const video = videos[index];
       if (!video) return;
-      document.querySelectorAll(".video-item").forEach(el => {
-        el.classList.remove('bg-white/10');
-        const title = el.querySelector('h3');
-        if (title) title.classList.remove('text-cyan-400');
-      });
-      item.classList.add('bg-white/10');
-      const title = item.querySelector('h3');
-      if (title) title.classList.add('text-cyan-400');
-      
+
+      updateVideoSelection(index);
+
       currentVideoData = video;
       updateHero(video);
       if (videoId) {
         stopAudioPlayback();
         loadVideoInPlayer(videoId);
       }
-      if (player && typeof syncWithYouTubePlayer === 'function') {
+      if (player && typeof syncWithYouTubePlayer === "function") {
         syncWithYouTubePlayer(player, video, videos);
       }
+
+      document.dispatchEvent(
+        new CustomEvent("videoDetailChanged", {
+          detail: { index, video },
+        })
+      );
     });
   });
-  
-  document.addEventListener('playerModalOpened', (e) => {
+
+  document.addEventListener("playerModalOpened", (e) => {
     const isVideoMode = e.detail?.isVideoMode;
     if (isVideoMode && currentVideoData && currentVideoData.videoId) {
       setTimeout(() => {
-        createYouTubePlayer(currentVideoData.videoId, 'modal-youtube-player');
+        createYouTubePlayer(currentVideoData.videoId, "modal-youtube-player");
       }, 100);
     }
   });
@@ -335,8 +381,12 @@ function setupActionButtons(currentVideo, videos) {
 
 function updateHero(video) {
   const title = document.querySelector("#video-hero h1");
-  const duration = document.querySelector("#video-hero .fa-clock")?.parentElement?.querySelector("span");
-  const views = document.querySelector("#video-hero .fa-eye")?.parentElement?.querySelector("span");
+  const duration = document
+    .querySelector("#video-hero .fa-clock")
+    ?.parentElement?.querySelector("span");
+  const views = document
+    .querySelector("#video-hero .fa-eye")
+    ?.parentElement?.querySelector("span");
 
   if (title) title.textContent = video.title || "";
   if (duration) duration.textContent = formatDuration(video.duration);
@@ -351,21 +401,20 @@ function formatDuration(sec = 0) {
   const h = Math.floor(sec / 3600);
   const m = Math.floor((sec % 3600) / 60);
   const s = Math.floor(sec % 60);
-  
+
   if (h > 0) {
-    return `${h}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+    return `${h}:${m.toString().padStart(2, "0")}:${s
+      .toString()
+      .padStart(2, "0")}`;
   }
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
 function formatViews(views = 0) {
   if (!views) return "0";
-  if (views >= 1000000000)
-    return `${(views / 1000000000).toFixed(1)}B`;
-  if (views >= 1000000)
-    return `${(views / 1000000).toFixed(1)}M`;
-  if (views >= 1000)
-    return `${(views / 1000).toFixed(1)}K`;
+  if (views >= 1000000000) return `${(views / 1000000000).toFixed(1)}B`;
+  if (views >= 1000000) return `${(views / 1000000).toFixed(1)}M`;
+  if (views >= 1000) return `${(views / 1000).toFixed(1)}K`;
   return views.toString();
 }
 

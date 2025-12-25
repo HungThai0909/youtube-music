@@ -44,7 +44,7 @@ export function initSearchHandler() {
       });
       return {
         suggestions: response.data?.suggestions || [],
-        completed: response.data?.completed || []
+        completed: response.data?.completed || [],
       };
     } catch (error) {
       return { suggestions: [], completed: [] };
@@ -67,18 +67,18 @@ export function initSearchHandler() {
   const renderSuggestions = (suggestionData) => {
     const { suggestions = [], completed = [] } = suggestionData;
     const query = searchInput.value.trim().toLowerCase();
-    const filteredSuggestions = suggestions.filter(item => {
+    const filteredSuggestions = suggestions.filter((item) => {
       const itemLower = item.toLowerCase();
       const matches = itemLower.startsWith(query);
       return matches;
     });
-    
-    const filteredCompleted = completed.filter(item => {
+
+    const filteredCompleted = completed.filter((item) => {
       const titleLower = item.title.toLowerCase();
       const matches = titleLower.startsWith(query);
       return matches;
     });
-    
+
     if (!filteredSuggestions.length && !filteredCompleted.length) {
       searchSuggestions.classList.add("hidden");
       return;
@@ -107,7 +107,7 @@ export function initSearchHandler() {
                data-type="${item.type}"
                data-slug="${item.slug}">
             <img 
-              src="${item.thumbnails?.[0] || 'https://via.placeholder.com/48'}" 
+              src="${item.thumbnails?.[0] || "https://via.placeholder.com/48"}" 
               alt="${item.title}" 
               class="w-12 h-12 rounded object-cover"
               onerror="this.src='https://via.placeholder.com/48'"
@@ -115,7 +115,7 @@ export function initSearchHandler() {
             <div class="flex-1 min-w-0">
               <div class="text-white font-medium truncate">${item.title}</div>
               <div class="text-gray-400 text-xs flex items-center gap-2">
-                <span class="truncate">${item.subtitle || ''}</span>
+                <span class="truncate">${item.subtitle || ""}</span>
               </div>
             </div>
           </div>
@@ -130,7 +130,7 @@ export function initSearchHandler() {
       item.addEventListener("click", () => {
         const query = item.getAttribute("data-query");
         searchInput.value = query;
-        performFullSearch(query); 
+        performFullSearch(query);
       });
     });
 
@@ -139,7 +139,7 @@ export function initSearchHandler() {
         const type = item.getAttribute("data-type");
         const id = item.getAttribute("data-id");
         const slug = item.getAttribute("data-slug");
-        
+
         if (type === "album") {
           window.location.href = `/album/details/${id}`;
         } else if (type === "playlist") {
@@ -147,6 +147,7 @@ export function initSearchHandler() {
         } else if (type === "song") {
           window.location.href = `/song/details/${id}`;
         } else if (type === "video") {
+          window.location.href = `/video/details/${id}`;
         }
       });
     });
@@ -154,19 +155,19 @@ export function initSearchHandler() {
 
   const renderSearchResults = (data) => {
     const results = data.results || [];
-    
+
     if (!results || results.length === 0) {
       hideAllSections();
       searchNoResults.classList.remove("hidden");
       return;
     }
-    
-    const songs = results.filter(item => item.type === 'song');
-    const albums = results.filter(item => item.type === 'album');
-    const playlists = results.filter(item => item.type === 'playlist');
-    const artists = results.filter(item => item.type === 'artist');
-    const videos = results.filter(item => item.type === 'video');
-    
+
+    const songs = results.filter((item) => item.type === "song");
+    const albums = results.filter((item) => item.type === "album");
+    const playlists = results.filter((item) => item.type === "playlist");
+    const artists = results.filter((item) => item.type === "artist");
+    const videos = results.filter((item) => item.type === "video");
+
     let html = "";
 
     if (videos.length > 0) {
@@ -177,18 +178,28 @@ export function initSearchHandler() {
             .slice(0, 3)
             .map(
               (video) => `
-            <div class="px-4 py-3 hover:bg-gray-800 cursor-pointer transition-colors flex items-center gap-3" data-video-id="${video.id}">
+            <div class="px-4 py-3 hover:bg-gray-800 cursor-pointer transition-colors flex items-center gap-3" data-video-id="${
+              video.id
+            }">
               <img 
-                src="${video.thumbnails?.[0] || 'https://via.placeholder.com/96x54'}" 
+                src="${
+                  video.thumbnails?.[0] || "https://via.placeholder.com/96x54"
+                }" 
                 alt="${video.title}" 
                 class="w-24 h-16 rounded object-cover"
                 onerror="this.src='https://via.placeholder.com/96x54'"
               >
               <div class="flex-1 min-w-0">
-                <div class="text-white font-medium truncate">${video.title}</div>
-                <div class="text-gray-400 text-sm truncate">${video.subtitle || ''}</div>
+                <div class="text-white font-medium truncate">${
+                  video.title
+                }</div>
+                <div class="text-gray-400 text-sm truncate">${
+                  video.subtitle || ""
+                }</div>
               </div>
-              <div class="text-gray-500 text-xs">${formatDuration(video.duration || 0)}</div>
+              <div class="text-gray-500 text-xs">${formatDuration(
+                video.duration || 0
+              )}</div>
             </div>
           `
             )
@@ -204,18 +215,26 @@ export function initSearchHandler() {
             .slice(0, 5)
             .map(
               (song) => `
-            <div class="px-4 py-3 hover:bg-gray-800 cursor-pointer transition-colors flex items-center gap-3" data-song-id="${song.id}">
+            <div class="px-4 py-3 hover:bg-gray-800 cursor-pointer transition-colors flex items-center gap-3" data-song-id="${
+              song.id
+            }">
               <img 
-                src="${song.thumbnails?.[0] || 'https://via.placeholder.com/48'}" 
+                src="${
+                  song.thumbnails?.[0] || "https://via.placeholder.com/48"
+                }" 
                 alt="${song.title}" 
                 class="w-12 h-12 rounded object-cover"
                 onerror="this.src='https://via.placeholder.com/48'"
               >
               <div class="flex-1 min-w-0">
                 <div class="text-white font-medium truncate">${song.title}</div>
-                <div class="text-gray-400 text-sm truncate">${song.subtitle || 'Unknown'}</div>
+                <div class="text-gray-400 text-sm truncate">${
+                  song.subtitle || "Unknown"
+                }</div>
               </div>
-              <div class="text-gray-500 text-xs">${formatDuration(song.duration || 0)}</div>
+              <div class="text-gray-500 text-xs">${formatDuration(
+                song.duration || 0
+              )}</div>
             </div>
           `
             )
@@ -233,15 +252,23 @@ export function initSearchHandler() {
               .slice(0, 4)
               .map(
                 (album) => `
-              <div class="hover:bg-gray-800 p-2 rounded cursor-pointer transition-colors" data-album-id="${album.id}">
+              <div class="hover:bg-gray-800 p-2 rounded cursor-pointer transition-colors" data-album-id="${
+                album.id
+              }">
                 <img 
-                  src="${album.thumbnails?.[0] || 'https://via.placeholder.com/200'}" 
+                  src="${
+                    album.thumbnails?.[0] || "https://via.placeholder.com/200"
+                  }" 
                   alt="${album.title}" 
                   class="w-full aspect-square rounded object-cover mb-2"
                   onerror="this.src='https://via.placeholder.com/200'"
                 >
-                <div class="text-white text-sm font-medium truncate">${album.title}</div>
-                <div class="text-gray-400 text-xs truncate">${album.subtitle || 'Various Artists'}</div>
+                <div class="text-white text-sm font-medium truncate">${
+                  album.title
+                }</div>
+                <div class="text-gray-400 text-xs truncate">${
+                  album.subtitle || "Various Artists"
+                }</div>
               </div>
             `
               )
@@ -259,16 +286,24 @@ export function initSearchHandler() {
             .slice(0, 3)
             .map(
               (playlist) => `
-            <div class="px-4 py-3 hover:bg-gray-800 cursor-pointer transition-colors flex items-center gap-3" data-playlist-id="${playlist.id}">
+            <div class="px-4 py-3 hover:bg-gray-800 cursor-pointer transition-colors flex items-center gap-3" data-playlist-id="${
+              playlist.id
+            }">
               <img 
-                src="${playlist.thumbnails?.[0] || 'https://via.placeholder.com/64'}" 
+                src="${
+                  playlist.thumbnails?.[0] || "https://via.placeholder.com/64"
+                }" 
                 alt="${playlist.title}" 
                 class="w-16 h-16 rounded object-cover"
                 onerror="this.src='https://via.placeholder.com/64'"
               >
               <div class="flex-1 min-w-0">
-                <div class="text-white font-medium truncate">${playlist.title}</div>
-                <div class="text-gray-400 text-sm">${playlist.subtitle || ''}</div>
+                <div class="text-white font-medium truncate">${
+                  playlist.title
+                }</div>
+                <div class="text-gray-400 text-sm">${
+                  playlist.subtitle || ""
+                }</div>
               </div>
             </div>
           `
@@ -287,15 +322,23 @@ export function initSearchHandler() {
               .slice(0, 4)
               .map(
                 (artist) => `
-              <div class="hover:bg-gray-800 p-2 rounded cursor-pointer transition-colors text-center" data-artist-id="${artist.id}">
+              <div class="hover:bg-gray-800 p-2 rounded cursor-pointer transition-colors text-center" data-artist-id="${
+                artist.id
+              }">
                 <img 
-                  src="${artist.thumbnails?.[0] || 'https://via.placeholder.com/80'}" 
+                  src="${
+                    artist.thumbnails?.[0] || "https://via.placeholder.com/80"
+                  }" 
                   alt="${artist.title}" 
                   class="w-20 h-20 rounded-full object-cover mx-auto mb-2"
                   onerror="this.src='https://via.placeholder.com/80'"
                 >
-                <div class="text-white text-sm font-medium truncate">${artist.title}</div>
-                <div class="text-gray-400 text-xs truncate">${artist.subtitle || ''}</div>
+                <div class="text-white text-sm font-medium truncate">${
+                  artist.title
+                }</div>
+                <div class="text-gray-400 text-xs truncate">${
+                  artist.subtitle || ""
+                }</div>
               </div>
             `
               )
@@ -352,11 +395,11 @@ export function initSearchHandler() {
   const debouncedSuggestions = debounce(performSuggestionsOnly, 300);
   searchInput.addEventListener("input", (e) => {
     const query = e.target.value;
-    
+
     if (query.trim()) {
       clearSearch.classList.remove("hidden");
       searchIcon.classList.add("hidden");
-      debouncedSuggestions(query); 
+      debouncedSuggestions(query);
     } else {
       clearSearch.classList.add("hidden");
       searchIcon.classList.remove("hidden");

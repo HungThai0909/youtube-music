@@ -1,7 +1,8 @@
 import { Header } from "../components/header";
 import { Sidebar } from "../components/sidebar";
 import { initSidebarToggle } from "./home";
-import { playSong } from "../components/Playbar";
+import { initSearchHandler } from "../utils/initSearchHandler";
+import { playSong } from "../utils/Playbar";
 
 let currentRouter = null;
 
@@ -28,6 +29,7 @@ export const SongDetail = (match) => {
   `;
 
   initSidebarToggle();
+  initSearchHandler();
   loadSongDetail(songId);
 };
 
@@ -110,7 +112,8 @@ function renderTracksList(tracks) {
             <span class="text-gray-400 text-sm font-medium">
               ${formatDuration(t.duration)}
             </span>
-          </div>`)
+          </div>`
+          )
           .join("")}
       </div>
     </div>
@@ -129,9 +132,7 @@ async function renderHero(data) {
       (t) => t?.id && !map.has(t.id) && map.set(t.id, t)
     )
   );
-  related.forEach(
-    (t) => t?.id && !map.has(t.id) && map.set(t.id, t)
-  );
+  related.forEach((t) => t?.id && !map.has(t.id) && map.set(t.id, t));
 
   const combinedTracks = [...map.values()];
 
