@@ -373,23 +373,11 @@ async function renderHero(data, combinedVideos) {
           </h1>
           <div class="flex items-center justify-center gap-6 text-gray-400 mb-4">
             <div class="flex items-center gap-2">
-              <i class="fas fa-clock"></i>
-              <span>${formatDuration(data.duration)}</span>
+              <span>Thời lượng: ${formatDuration(data.duration)}</span>
             </div>
             <div class="flex items-center gap-2">
-              <i class="fas fa-eye"></i>
               <span>${formatViews(data.popularity)} lượt xem</span>
             </div>
-          </div>
-          <div class="flex items-center justify-center gap-3">
-            <button id="play-audio-btn" class="px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-full font-semibold transition flex items-center gap-2">
-              <i class="fas fa-music"></i>
-              <span>Phát nhạc nền</span>
-            </button>
-            <button id="add-to-playlist-btn" class="px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-full font-semibold transition flex items-center gap-2">
-              <i class="fas fa-plus"></i>
-              <span>Thêm vào playlist</span>
-            </button>
           </div>
         </div>
       </div>
@@ -404,7 +392,6 @@ async function renderHero(data, combinedVideos) {
   `;
 
   setupVideoClickHandlers(data, combinedVideos);
-  setupActionButtons(data, combinedVideos);
   setupModalEventListeners();
 }
 
@@ -500,21 +487,6 @@ function setupVideoClickHandlers(currentVideo, videos) {
       );
     });
   });
-}
-
-function setupActionButtons(currentVideo, videos) {
-  const playAudioBtn = document.querySelector("#play-audio-btn");
-  if (playAudioBtn) {
-    playAudioBtn.addEventListener("click", () => {
-      playSong(currentVideo, videos, 0);
-    });
-  }
-  const addToPlaylistBtn = document.querySelector("#add-to-playlist-btn");
-  if (addToPlaylistBtn) {
-    addToPlaylistBtn.addEventListener("click", () => {
-      alert("Tính năng đang phát triển!");
-    });
-  }
 }
 
 function updateHero(video) {
