@@ -1,6 +1,6 @@
 import { Content } from "../components/Content";
 import { Header } from "../components/header";
-import { Sidebar } from "./components/Sidebar";
+import { Sidebar } from "../components/Sidebar";
 import { initSearchHandler } from "../utils/initSearchHandler";
 import { PersonalizedSection } from "../components/sections/home/PersonalizedSection";
 import "../assets/style/style.css";

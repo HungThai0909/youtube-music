@@ -3,7 +3,7 @@ import { AlbumSection } from "../components/sections/explore/AlbumSection";
 import { CategorySection } from "../components/sections/explore/CategorySection";
 import { MetaSection } from "../components/sections/explore/MetaSection";
 import { VideoSection } from "../components/sections/explore/VideoSection";
-import { Sidebar } from "./components/Sidebar";
+import { Sidebar } from "../components/Sidebar";
 import { initSidebarToggle } from "./home";
 import { initSearchHandler } from "../utils/initSearchHandler";
 
