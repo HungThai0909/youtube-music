@@ -230,7 +230,16 @@ export const PersonalizedSection = {
           item.addEventListener("click", (e) => {
             e.preventDefault();
             const slug = playlist.slug || playlist.id;
-            if (slug && this.router) {
+            if (!slug || !this.router) return;
+            const type = (playlist.type || "playlist").toLowerCase();
+            if (type === "album") {
+              this.router.navigate(`/album/details/${slug}`);
+            } else if (type === "playlist") {
+              this.router.navigate(`/playlist/details/${slug}`);
+            } else if (type === "category") {
+              this.router.navigate(`/category/${slug}`);
+            } else {
+              // default fallback
               this.router.navigate(`/playlist/details/${slug}`);
             }
           });

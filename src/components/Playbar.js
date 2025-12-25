@@ -1,15 +1,15 @@
-import {
-  togglePlay,
-  playNext,
-  playPrevious,
-  seek,
-  setVolume,
-  toggleMute,
-  toggleRepeat,
+import { 
+  togglePlay, 
+  playNext, 
+  playPrevious, 
+  seek, 
+  setVolume, 
+  toggleMute, 
+  toggleRepeat, 
   toggleShuffle,
   playSong,
-  getPlayerState,
-} from "../utils/Playbar.js";
+  getPlayerState
+} from "../utils/Playbar";
 
 export function formatTime(seconds) {
   if (!seconds || isNaN(seconds)) return "0:00";
@@ -21,7 +21,7 @@ export function formatTime(seconds) {
 export function updatePlayerInfo() {
   const state = getPlayerState();
   if (!state.currentSong) return;
-
+  
   const thumbnail = document.querySelector("#player-thumbnail");
   const title = document.querySelector("#player-title");
   const artist = document.querySelector("#player-artist");
@@ -48,7 +48,7 @@ export function updateProgressBar() {
   const progressBar = document.querySelector("#progress-bar");
   const progressFill = document.querySelector("#progress-fill");
   const progressThumb = document.querySelector("#progress-thumb");
-
+  
   if (progressBar && state.duration) {
     const percentage = (state.currentTime / state.duration) * 100;
     progressBar.value = percentage;
@@ -133,7 +133,7 @@ export function toggleModal() {
 
   const state = getPlayerState();
   const isHidden = modal.classList.contains("hidden");
-
+  
   if (isHidden) {
     modal.classList.remove("hidden");
     updateModalInfo();
@@ -141,13 +141,12 @@ export function toggleModal() {
     updateModalVolumeUI();
     updateModalRepeatButton();
     updateModalShuffleButton();
-    document.dispatchEvent(
-      new CustomEvent("playerModalOpened", {
-        detail: { isVideoMode: state.isVideoMode },
-      })
-    );
+    document.dispatchEvent(new CustomEvent("playerModalOpened", { 
+      detail: { isVideoMode: state.isVideoMode } 
+    }));
   } else {
     modal.classList.add("hidden");
+    document.dispatchEvent(new CustomEvent("playerModalClosed"));
   }
 }
 
@@ -164,16 +163,14 @@ export function updateModalInfo() {
   if (state.isVideoMode && state.youtubePlayer) {
     if (modalYouTubePlayer) modalYouTubePlayer.classList.remove("hidden");
     if (modalThumbnail) modalThumbnail.classList.add("hidden");
-    if (modalPlaylistTitle)
-      modalPlaylistTitle.textContent = "Danh sách phát liên quan";
+    if (modalPlaylistTitle) modalPlaylistTitle.textContent = "Danh sách phát liên quan";
   } else {
     if (modalYouTubePlayer) modalYouTubePlayer.classList.add("hidden");
     if (modalThumbnail) {
       modalThumbnail.classList.remove("hidden");
       modalThumbnail.src = state.currentSong.thumbnails?.[0] || "";
     }
-    if (modalPlaylistTitle)
-      modalPlaylistTitle.textContent = "Danh sách phát liên quan";
+    if (modalPlaylistTitle) modalPlaylistTitle.textContent = "Danh sách phát liên quan";
   }
 
   if (modalTitle) modalTitle.textContent = state.currentSong.title || "Unknown";
@@ -293,40 +290,33 @@ export function updateModalPlaylist() {
   `
     )
     .join("");
-
+    
   playlistContainer.querySelectorAll(".modal-playlist-item").forEach((item) => {
     item.addEventListener("click", () => {
       const index = parseInt(item.dataset.index);
       const state = getPlayerState();
-
+      
       if (state.isVideoMode) {
         const video = state.playlist[index];
-        if (
-          video.videoId &&
-          state.youtubePlayer &&
-          state.youtubePlayer.loadVideoById
-        ) {
+        if (video.videoId && state.youtubePlayer && state.youtubePlayer.loadVideoById) {
           state.youtubePlayer.loadVideoById(video.videoId);
           updatePlayerInfo();
           updateModalInfo();
           updateModalPlaylist();
-          document.dispatchEvent(
-            new CustomEvent("modalVideoChanged", {
-              detail: { index, video },
-            })
-          );
+          document.dispatchEvent(new CustomEvent('modalVideoChanged', {
+            detail: { index, video }
+          }));
         }
       } else {
         playSong(state.playlist[index], state.playlist, index);
       }
     });
   });
-
-  document.addEventListener("videoDetailChanged", (event) => {
+  document.addEventListener('videoDetailChanged', (event) => {
     const { index } = event.detail;
     updateModalPlaylist();
   });
-
+  
   const currentItem = playlistContainer.querySelector(
     `[data-index="${state.currentIndex}"]`
   );
@@ -336,7 +326,6 @@ export function updateModalPlaylist() {
 }
 
 export function setupModalProgressHover() {
-  const state = getPlayerState();
   const progressContainer = document.querySelector("#modal-progress-container");
   const tooltip = document.querySelector("#modal-progress-tooltip");
 
@@ -519,9 +508,20 @@ export function createPlayer() {
 
   document.body.insertAdjacentHTML("beforeend", playerHTML);
   attachEventListeners();
+  setupMainPlayerVolumeListener();
   updateVolumeUI();
   setupProgressHover();
   setupModalProgressHover();
+}
+
+function setupMainPlayerVolumeListener() {
+  document.addEventListener('mainPlayerVolumeChanged', (event) => {
+    const { volume, isMuted } = event.detail;
+    setVolume(volume);
+    if (isMuted) {
+      toggleMute();
+    }
+  });
 }
 
 export function setupProgressHover() {

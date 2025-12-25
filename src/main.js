@@ -10,6 +10,7 @@ import { TodayHitSection } from "./components/sections/home/TodayHitsSection";
 import { VMusicSection } from "./components/sections/home/VMusicSection";
 import { CategorySection } from "./components/sections/explore/CategorySection";
 import { AlbumSection as ExploreAlbumSection } from "./components/sections/explore/AlbumSection";
+import { PersonalizedSection } from "./components/sections/home/PersonalizedSection";
 import { MetaSection } from "./components/sections/explore/MetaSection";
 import { VideoSection } from "./components/sections/explore/VideoSection";
 import { PlaylistDetail, setPlaylistDetailRouter } from "./pages/PlaylistDetails";
@@ -21,6 +22,7 @@ import { MetaPage, setMetaPageRouter } from "./pages/MetaPage";
 import { LineDetail, setLineDetailRouter } from "./pages/LineDetails";
 import { SongDetail, setSongDetailRouter } from "./pages/SongDetails";
 import { VideoDetail, setVideoDetailRouter } from "./pages/VideoDetails";
+
 
 import Navigo from "navigo";
 const router = new Navigo("/");
@@ -34,6 +36,7 @@ CategorySection.setRouter(router);
 ExploreAlbumSection.setRouter(router);
 MetaSection.setRouter(router);
 VideoSection.setRouter(router);
+PersonalizedSection.setRouter(router);
 
 setMoodDetailRouter(router);
 setPlaylistDetailRouter(router);
