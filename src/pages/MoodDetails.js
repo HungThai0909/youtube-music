@@ -1,5 +1,5 @@
 import { Header } from "../components/header";
-import { Sidebar } from "../components/sidebar";
+import { Sidebar } from "./components/Sidebar";
 import { initSidebarToggle } from "./home";
 import { initSearchHandler } from "../utils/initSearchHandler";
 import { MoodsSection } from "../components/sections/home/MoodsSection";
