@@ -32,13 +32,23 @@ export const MetaSection = {
         <div class="relative overflow-hidden" id="meta-viewport">
           <div id="meta-container"
             class="flex gap-6 transition-transform duration-500 ease-in-out">
-            ${Array(5).fill('').map(() => `
+            ${Array(5)
+              .fill("")
+              .map(
+                () => `
               <div class="flex-shrink-0 w-[280px] space-y-3 opacity-0">
-                ${Array(4).fill('').map(() => `
+                ${Array(4)
+                  .fill("")
+                  .map(
+                    () => `
                   <div class="h-[72px] bg-gray-800 rounded-xl"></div>
-                `).join('')}
+                `
+                  )
+                  .join("")}
               </div>
-            `).join('')}
+            `
+              )
+              .join("")}
           </div>
         </div>
         <div class="h-5 mt-4">
@@ -76,7 +86,12 @@ export const MetaSection = {
     const container = document.querySelector("#meta-container");
     const firstColumn = container?.querySelector(".flex-shrink-0");
     if (!viewport || !container) {
-      return { columnWidth: 280, itemsPerView: 5, viewportWidth: 1400, totalWidth: 0 };
+      return {
+        columnWidth: 280,
+        itemsPerView: 5,
+        viewportWidth: 1400,
+        totalWidth: 0,
+      };
     }
     const viewportWidth = viewport.offsetWidth;
     const gap = parseFloat(getComputedStyle(container).gap) || 24;
@@ -101,7 +116,12 @@ export const MetaSection = {
       const res = await fetch(this.API_URL);
       if (!res.ok) throw new Error("Fetch error");
       const data = await res.json();
-      const metas = [...(data.categories ?? []), ...(data.lines ?? [])];
+      const categories = (data.categories ?? []).map((c) => ({
+        ...c,
+        metaType: "category",
+      }));
+      const lines = (data.lines ?? []).map((l) => ({ ...l, metaType: "line" }));
+      const metas = [...categories, ...lines];
       this.columns = this.chunk(metas, this.ITEMS_PER_COLUMN);
       this.hideError();
       this.renderColumns();
@@ -174,9 +194,11 @@ export const MetaSection = {
     const maxIndex = this.getMaxIndex();
     const metrics = this.getCarouselMetrics();
     this.currentIndex = Math.max(0, Math.min(this.currentIndex, maxIndex));
-    const translateX = this.currentIndex === maxIndex && this.columns.length > metrics.itemsPerView
-      ? metrics.totalWidth - metrics.viewportWidth
-      : this.currentIndex * metrics.columnWidth;
+    const translateX =
+      this.currentIndex === maxIndex &&
+      this.columns.length > metrics.itemsPerView
+        ? metrics.totalWidth - metrics.viewportWidth
+        : this.currentIndex * metrics.columnWidth;
     container.style.transform = `translateX(-${translateX}px)`;
     this.updateNavigation();
     this.updateScrollbar();
@@ -236,24 +258,28 @@ export const MetaSection = {
       const rect = track.getBoundingClientRect();
       this.scrollToPosition((e.clientX - rect.left) / rect.width);
     });
-    let startX = 0, startLeft = 0;
+    let startX = 0,
+      startLeft = 0;
     thumb?.addEventListener("mousedown", (e) => {
       this.isDragging = true;
       startX = e.clientX;
       startLeft = thumb.offsetLeft;
       e.preventDefault();
     });
-    
+
     document.addEventListener("mousemove", (e) => {
       if (!this.isDragging) return;
       const rect = track.getBoundingClientRect();
       const thumbWidth = thumb.offsetWidth;
       const maxLeft = rect.width - thumbWidth;
-      const newLeft = Math.max(0, Math.min(startLeft + e.clientX - startX, maxLeft));
+      const newLeft = Math.max(
+        0,
+        Math.min(startLeft + e.clientX - startX, maxLeft)
+      );
       const percent = newLeft / maxLeft;
       this.scrollToPosition(percent);
     });
-    
+
     document.addEventListener("mouseup", () => {
       this.isDragging = false;
     });
@@ -294,6 +320,12 @@ export const MetaSection = {
       console.error("Router not initialized!");
       return;
     }
-    this.router.navigate(`/category/${item.slug}`);
+
+    const type = item?.metaType || item?.type || "category";
+    if (type === "line") {
+      this.router.navigate(`/line/${item.slug}`);
+    } else {
+      this.router.navigate(`/category/${item.slug}`);
+    }
   },
 };

@@ -195,6 +195,23 @@ function initSidebarToggle() {
         }, 1500);
         return;
       }
+      try {
+        const userMenuEl = document.querySelector("#userMenu");
+        if (userMenuEl && !userMenuEl.classList.contains("hidden")) {
+          userMenuEl.classList.add("hidden");
+        }
+        const sidebarUserMenuEl = document.querySelector("#sidebarUserMenu");
+        if (
+          sidebarUserMenuEl &&
+          !sidebarUserMenuEl.classList.contains("hidden")
+        ) {
+          sidebarUserMenuEl.classList.add("hidden");
+        }
+        document.querySelector("#changePasswordModalOverlay")?.remove();
+      } catch (e) {
+        console.warn("Could not hide menus before opening profile modal:", e);
+      }
+
       const overlay = document.createElement("div");
       overlay.id = "profileModalOverlay";
       overlay.className =
@@ -372,14 +389,48 @@ function initSidebarToggle() {
               name: nameVal,
               email: emailVal,
             });
-            createNotification("Cập nhật thành công!", "success");
-            const cur = JSON.parse(localStorage.getItem("currentUser") || "{}");
-            cur.name = nameVal;
-            cur.email = emailVal;
-            localStorage.setItem("currentUser", JSON.stringify(cur));
+            try {
+              const cur = JSON.parse(
+                localStorage.getItem("currentUser") || "{}"
+              );
+              cur.name = nameVal;
+              cur.email = emailVal;
+              localStorage.setItem("currentUser", JSON.stringify(cur));
 
-            close();
-            setTimeout(() => window.location.reload(), 1000);
+              const userButton = document.querySelector("#userButton");
+              if (userButton) {
+                const initial = (nameVal.split(/\s+/)[0] || "")
+                  .charAt(0)
+                  .toUpperCase();
+                userButton.textContent = initial;
+              }
+              const nameEls = document.querySelectorAll(".sidebar-user-name");
+              nameEls.forEach((el) => (el.textContent = nameVal));
+
+              document.dispatchEvent(
+                new CustomEvent("profileUpdated", {
+                  detail: { name: nameVal, email: emailVal },
+                })
+              );
+            } catch (uiErr) {
+              console.error("Error updating UI after profile save:", uiErr);
+            }
+            try {
+              document
+                .querySelectorAll(
+                  "#profileModalOverlay, #changePasswordModalOverlay"
+                )
+                .forEach((o) => o.remove());
+            } catch (remErr) {
+              console.warn("Could not remove profile overlays:", remErr);
+            }
+            try {
+              window.history.replaceState(null, "", "/");
+            } catch (hErr) {
+              console.warn("Could not replace history state:", hErr);
+            }
+
+            createNotification("Cập nhật thành công!", "success");
           } catch (err) {
             const errors = err?.response?.data?.errors;
             if (errors) {
@@ -453,6 +504,26 @@ function initSidebarToggle() {
           window.location.href = "/login";
         }, 1200);
         return;
+      }
+
+      try {
+        const userMenuEl = document.querySelector("#userMenu");
+        if (userMenuEl && !userMenuEl.classList.contains("hidden")) {
+          userMenuEl.classList.add("hidden");
+        }
+        const sidebarUserMenuEl = document.querySelector("#sidebarUserMenu");
+        if (
+          sidebarUserMenuEl &&
+          !sidebarUserMenuEl.classList.contains("hidden")
+        ) {
+          sidebarUserMenuEl.classList.add("hidden");
+        }
+        document.querySelector("#profileModalOverlay")?.remove();
+      } catch (e) {
+        console.warn(
+          "Error while hiding menus before opening change-password modal:",
+          e
+        );
       }
 
       const overlay = document.createElement("div");

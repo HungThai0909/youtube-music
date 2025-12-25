@@ -1,13 +1,14 @@
 import { Header } from "../components/header";
 import { Sidebar } from "../components/sidebar";
 import { initSidebarToggle } from "./home";
-import { playSong, syncWithYouTubePlayer } from "../components/Playbar";
+import { playSong, syncWithYouTubePlayer, stopAudioPlayback } from "../components/Playbar";
 
 let currentRouter = null;
 let player = null;
 let modalPlayer = null;
 let currentVideoData = null;
 let currentVideos = [];
+
 export const VideoDetail = (match) => {
   const app = document.querySelector("#app");
   const videoId = match?.data?.id;
@@ -85,6 +86,7 @@ function createYouTubePlayer(videoId, containerId = 'youtube-player') {
 function onPlayerReady(event, containerId) {
   const playerInstance = containerId === 'youtube-player' ? player : modalPlayer;
   if (playerInstance && typeof syncWithYouTubePlayer === 'function') {
+    stopAudioPlayback();
     syncWithYouTubePlayer(playerInstance, currentVideoData, currentVideos);
   }
 }
@@ -132,6 +134,10 @@ async function loadVideoDetail(id) {
     if (!Array.isArray(relatedVideos)) relatedVideos = [];
     const playlists = videoData.playlists || [];
     const map = new Map();
+    if (videoData?.id) {
+      map.set(videoData.id, videoData);
+    }
+    
     relatedVideos.forEach((v) => v?.id && map.set(v.id, v));
     playlists.forEach((pl) =>
       (pl.tracks || []).forEach(
@@ -176,7 +182,7 @@ function renderVideosList(videos) {
             (v, i) => `
           <div
             class="video-item group flex items-center gap-4 py-3 px-4
-                   rounded-lg hover:bg-gray-800 cursor-pointer transition"
+                   rounded-lg hover:bg-gray-800 cursor-pointer transition ${i === 0 ? 'bg-white/10' : ''}"
             data-video-index="${i}"
             data-video-id="${v.videoId || ''}"
           >
@@ -201,7 +207,7 @@ function renderVideosList(videos) {
             </div>
 
             <div class="flex-1 min-w-0">
-              <h3 class="text-white font-medium truncate">
+              <h3 class="text-white font-medium truncate ${i === 0 ? 'text-cyan-400' : ''}">
                 ${v.title}
               </h3>
               <p class="text-gray-400 text-xs truncate">
@@ -281,9 +287,19 @@ function setupVideoClickHandlers(currentVideo, videos) {
       const videoId = item.dataset.videoId;
       const video = videos[index];
       if (!video) return;
+      document.querySelectorAll(".video-item").forEach(el => {
+        el.classList.remove('bg-white/10');
+        const title = el.querySelector('h3');
+        if (title) title.classList.remove('text-cyan-400');
+      });
+      item.classList.add('bg-white/10');
+      const title = item.querySelector('h3');
+      if (title) title.classList.add('text-cyan-400');
+      
       currentVideoData = video;
       updateHero(video);
       if (videoId) {
+        stopAudioPlayback();
         loadVideoInPlayer(videoId);
       }
       if (player && typeof syncWithYouTubePlayer === 'function') {
@@ -291,8 +307,10 @@ function setupVideoClickHandlers(currentVideo, videos) {
       }
     });
   });
-  document.addEventListener('playerModalOpened', () => {
-    if (currentVideoData && currentVideoData.videoId) {
+  
+  document.addEventListener('playerModalOpened', (e) => {
+    const isVideoMode = e.detail?.isVideoMode;
+    if (isVideoMode && currentVideoData && currentVideoData.videoId) {
       setTimeout(() => {
         createYouTubePlayer(currentVideoData.videoId, 'modal-youtube-player');
       }, 100);
