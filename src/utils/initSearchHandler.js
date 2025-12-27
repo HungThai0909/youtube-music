@@ -86,11 +86,14 @@ export function initSearchHandler() {
 
     let html = "";
     if (filteredSuggestions.length > 0) {
+      html += ``;
       html += filteredSuggestions
         .map(
           (item) => `
-          <div class="px-4 py-3 hover:bg-gray-800 cursor-pointer transition-colors flex items-center gap-3 suggestion-item" data-query="${item}">
-            <span class="text-white">${item}</span>
+          <div class="px-4 py-3 hover:bg-gray-800 cursor-pointer transition-colors flex items-center gap-3 group suggestion-item" data-query="${item}">
+            <i class="fas fa-search text-gray-400 text-sm"></i>
+            <span class="text-white flex-1">${item}</span>
+            <i class="fas fa-arrow-right text-gray-500 text-sm opacity-0 group-hover:opacity-100 transition-opacity"></i>
           </div>
         `
         )
@@ -351,6 +354,45 @@ export function initSearchHandler() {
     searchContent.innerHTML = html;
     hideAllSections();
     searchContent.classList.remove("hidden");
+    
+    attachSearchResultListeners();
+  };
+
+  const attachSearchResultListeners = () => {
+    document.querySelectorAll("[data-video-id]").forEach((item) => {
+      item.addEventListener("click", () => {
+        const videoId = item.getAttribute("data-video-id");
+        window.location.href = `/video/details/${videoId}`;
+      });
+    });
+
+    document.querySelectorAll("[data-song-id]").forEach((item) => {
+      item.addEventListener("click", () => {
+        const songId = item.getAttribute("data-song-id");
+        window.location.href = `/song/details/${songId}`;
+      });
+    });
+
+    document.querySelectorAll("[data-album-id]").forEach((item) => {
+      item.addEventListener("click", () => {
+        const albumId = item.getAttribute("data-album-id");
+        window.location.href = `/album/details/${albumId}`;
+      });
+    });
+
+    document.querySelectorAll("[data-playlist-id]").forEach((item) => {
+      item.addEventListener("click", () => {
+        const playlistId = item.getAttribute("data-playlist-id");
+        window.location.href = `/playlist/details/${playlistId}`;
+      });
+    });
+
+    document.querySelectorAll("[data-artist-id]").forEach((item) => {
+      item.addEventListener("click", () => {
+        const artistId = item.getAttribute("data-artist-id");
+        window.location.href = `/artist/details/${artistId}`;
+      });
+    });
   };
 
   const formatDuration = (seconds) => {

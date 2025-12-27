@@ -184,9 +184,11 @@ function setupTrackClickHandlers(tracks) {
 function updateHero(song) {
   const img = document.querySelector("#song-hero img");
   const title = document.querySelector("#song-hero h1");
+  const duration = document.querySelector("#song-hero .text-white:not(h1)");
 
   if (img) img.src = song.thumbnails?.[0] || "";
   if (title) title.textContent = song.title || "";
+  if (duration) duration.textContent = `Thời lượng: ${formatDuration(song.duration)}`;
 }
 
 function hideLoading() {
