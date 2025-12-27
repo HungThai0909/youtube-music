@@ -491,16 +491,12 @@ function setupVideoClickHandlers(currentVideo, videos) {
 
 function updateHero(video) {
   const title = document.querySelector("#video-hero h1");
-  const duration = document
-    .querySelector("#video-hero .fa-clock")
-    ?.parentElement?.querySelector("span");
-  const views = document
-    .querySelector("#video-hero .fa-eye")
-    ?.parentElement?.querySelector("span");
+  const durationSpan = document.querySelector("#video-hero .flex.items-center.justify-center.gap-6 > div:first-child span");
+  const viewsSpan = document.querySelector("#video-hero .flex.items-center.justify-center.gap-6 > div:last-child span");
 
   if (title) title.textContent = video.title || "";
-  if (duration) duration.textContent = formatDuration(video.duration);
-  if (views) views.textContent = formatViews(video.popularity) + " lượt xem";
+  if (durationSpan) durationSpan.textContent = `Thời lượng: ${formatDuration(video.duration)}`;
+  if (viewsSpan) viewsSpan.textContent = `${formatViews(video.popularity)} lượt xem`;
 }
 
 function hideLoading() {
