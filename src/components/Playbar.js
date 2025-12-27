@@ -516,11 +516,26 @@ export function createPlayer() {
 
 function setupMainPlayerVolumeListener() {
   document.addEventListener('mainPlayerVolumeChanged', (event) => {
-    const { volume, isMuted } = event.detail;
-    setVolume(volume);
-    if (isMuted) {
-      toggleMute();
+    const { volume: newVolume, isMuted: newIsMuted } = event.detail;
+    const state = getPlayerState();
+    if (Math.abs(newVolume - state.volume) <= 1 && newIsMuted === state.isMuted) {
+      return;
     }
+    if (newIsMuted !== state.isMuted) {
+      if (newIsMuted) {
+        localStorage.setItem("player_volume_before_mute", String(state.volume));
+        localStorage.setItem("player_volume", "0");
+        localStorage.setItem("player_muted", "true");
+      } else {
+        const volumeBeforeMute = parseInt(localStorage.getItem("player_volume_before_mute")) || 50;
+        localStorage.setItem("player_volume", String(volumeBeforeMute));
+        localStorage.setItem("player_muted", "false");
+      }
+    } else if (!newIsMuted && newVolume !== state.volume) {
+      localStorage.setItem("player_volume", String(newVolume));
+    }
+    updateVolumeUI();
+    updateModalVolumeUI();
   });
 }
 

@@ -336,19 +336,23 @@ export function seek(time) {
 export function setVolume(vol) {
   const newVol = Math.max(0, Math.min(100, parseInt(vol) || 0));
   volume = newVol;
+  
   if (audioPlayer) {
     audioPlayer.volume = volume / 100;
     if (isMuted && volume > 0) {
       isMuted = false;
       audioPlayer.muted = false;
+      localStorage.setItem("player_muted", "false");
     }
   }
+  
   if (youtubePlayer && youtubePlayer.setVolume) {
     try {
       youtubePlayer.setVolume(volume);
       if (isMuted && volume > 0) {
         isMuted = false;
         youtubePlayer.unMute();
+        localStorage.setItem("player_muted", "false");
       }
     } catch (e) {
       console.warn("[YouTube Volume] Error:", e);
@@ -356,7 +360,6 @@ export function setVolume(vol) {
   }
   
   localStorage.setItem("player_volume", String(volume));
-  localStorage.setItem("player_muted", String(isMuted));
   updateVolumeUI();
   updateModalVolumeUI();
 }
@@ -366,12 +369,14 @@ export function toggleMute() {
     try {
       const ytIsMuted = youtubePlayer.isMuted();
       if (!ytIsMuted) {
+        localStorage.setItem("player_volume_before_mute", String(volume));
         prevVolume = volume;
         volume = 0;
         isMuted = true;
         youtubePlayer.mute();
       } else {
-        volume = prevVolume || 50;
+        const volumeBeforeMute = parseInt(localStorage.getItem("player_volume_before_mute")) || prevVolume || 50;
+        volume = volumeBeforeMute;
         isMuted = false;
         youtubePlayer.unMute();
         youtubePlayer.setVolume(volume);
@@ -388,11 +393,13 @@ export function toggleMute() {
   
   if (!audioPlayer) {
     if (!isMuted) {
+      localStorage.setItem("player_volume_before_mute", String(volume));
       prevVolume = volume;
       volume = 0;
       isMuted = true;
     } else {
-      volume = prevVolume || 50;
+      const volumeBeforeMute = parseInt(localStorage.getItem("player_volume_before_mute")) || prevVolume || 50;
+      volume = volumeBeforeMute;
       isMuted = false;
     }
     localStorage.setItem("player_muted", String(isMuted));
@@ -403,13 +410,15 @@ export function toggleMute() {
   }
 
   if (!isMuted) {
+    localStorage.setItem("player_volume_before_mute", String(volume));
     prevVolume = volume;
     volume = 0;
     isMuted = true;
     audioPlayer.muted = true;
     audioPlayer.volume = 0;
   } else {
-    volume = prevVolume || 50;
+    const volumeBeforeMute = parseInt(localStorage.getItem("player_volume_before_mute")) || prevVolume || 50;
+    volume = volumeBeforeMute;
     isMuted = false;
     audioPlayer.muted = false;
     audioPlayer.volume = volume / 100;

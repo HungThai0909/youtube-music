@@ -60,17 +60,25 @@ function startMainPlayerVolumeMonitoring() {
     clearInterval(mainPlayerVolumeCheckInterval);
   }
 
+  let lastVolume = null;
+  let lastMutedState = null;
+
   mainPlayerVolumeCheckInterval = setInterval(() => {
     if (!player || !player.getVolume) return;
 
     try {
       const volume = Math.round(player.getVolume());
       const isMuted = player.isMuted();
-      document.dispatchEvent(
-        new CustomEvent("mainPlayerVolumeChanged", {
-          detail: { volume, isMuted },
-        })
-      );
+      if (volume !== lastVolume || isMuted !== lastMutedState) {
+        lastVolume = volume;
+        lastMutedState = isMuted;
+        
+        document.dispatchEvent(
+          new CustomEvent("mainPlayerVolumeChanged", {
+            detail: { volume, isMuted },
+          })
+        );
+      }
     } catch (e) {
       console.warn("[Main Player Volume Monitor] Error:", e);
     }
