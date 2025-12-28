@@ -3,6 +3,7 @@ import { Sidebar } from "../components/Sidebar";
 import { initSidebarToggle } from "./home";
 import { initSearchHandler } from "../utils/initSearchHandler";
 import { playSong } from "../utils/Playbar";
+import { updatePlayerInfo } from "../components/Playbar.js";
 
 let currentRouter = null;
 
@@ -44,6 +45,7 @@ function setupPlayerChangeListener() {
     if (song) {
       updateHero(song);
       updateActiveTrack(song);
+      updatePlayerInfo();
     }
   });
 }
