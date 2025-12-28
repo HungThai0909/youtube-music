@@ -73,7 +73,7 @@ function startMainPlayerVolumeMonitoring() {
       if (volume !== lastVolume || isMuted !== lastMutedState) {
         lastVolume = volume;
         lastMutedState = isMuted;
-        
+
         document.dispatchEvent(
           new CustomEvent("mainPlayerVolumeChanged", {
             detail: { volume, isMuted },
@@ -110,7 +110,7 @@ function startModalPlayerVolumeMonitoring() {
       if (volume !== lastVolume || isMuted !== lastMutedState) {
         lastVolume = volume;
         lastMutedState = isMuted;
-        
+
         document.dispatchEvent(
           new CustomEvent("modalPlayerVolumeChanged", {
             detail: { volume, isMuted },
@@ -225,7 +225,7 @@ function onPlayerReady(event, containerId) {
       try {
         stopAudioPlayback();
       } catch (e) {}
-      
+
       try {
         if (player && player.pauseVideo) {
           player.pauseVideo();
@@ -233,11 +233,11 @@ function onPlayerReady(event, containerId) {
       } catch (e) {
         console.warn("[Modal Open] Error pausing main player:", e);
       }
-      
+
       if (modalPlayer && typeof syncWithYouTubePlayer === "function") {
         syncModalPlayerWithMainPlayer();
         syncWithYouTubePlayer(modalPlayer, currentVideoData, currentVideos);
-        
+
         try {
           if (modalPlayer.playVideo) {
             modalPlayer.playVideo();
@@ -446,23 +446,23 @@ function setupModalEventListeners() {
       }, 100);
     }
   });
-  
+
   document.addEventListener("playerModalClosed", () => {
     if (modalPlayer && player) {
       try {
         syncMainPlayerWithModalPlayer();
-        
+
         if (typeof syncWithYouTubePlayer === "function") {
           syncWithYouTubePlayer(player, currentVideoData, currentVideos);
         }
-        
+
         if (player && player.playVideo) {
           player.playVideo();
         }
       } catch (e) {
         console.warn("[Modal Close] Error resuming main player:", e);
       }
-    
+
       try {
         if (modalPlayer && modalPlayer.pauseVideo) {
           modalPlayer.pauseVideo();
@@ -472,10 +472,55 @@ function setupModalEventListeners() {
       }
     }
   });
-  
-  document.addEventListener('modalPlayerVolumeChanged', (event) => {
+
+  document.addEventListener("playerSongChanged", (event) => {
+    const { song } = event.detail || {};
+    if (!song) return;
+
+    currentVideoData = song;
+    updateHero(song);
+
+    const foundIndex = currentVideos.findIndex((v) => v.id === song.id);
+    if (foundIndex !== -1) updateVideoSelection(foundIndex);
+
+    try {
+      stopAudioPlayback();
+    } catch (e) {}
+    try {
+      if (modalPlayer && modalPlayer.pauseVideo) modalPlayer.pauseVideo();
+    } catch (e) {}
+
+    const modalEl = document.querySelector("#player-modal");
+    const isModalOpen = modalEl && !modalEl.classList.contains("hidden");
+    const targetPlayer = isModalOpen ? modalPlayer : player;
+
+    if (targetPlayer && song.videoId && targetPlayer.loadVideoById) {
+      try {
+        targetPlayer.loadVideoById(song.videoId);
+        setTimeout(() => {
+          try {
+            if (targetPlayer.playVideo) targetPlayer.playVideo();
+          } catch (e) {}
+        }, 100);
+      } catch (e) {
+        console.warn("[playerSongChanged] Error loading player:", e);
+      }
+    }
+
+    try {
+      if (typeof syncWithYouTubePlayer === "function") {
+        syncWithYouTubePlayer(
+          targetPlayer || player || modalPlayer,
+          song,
+          currentVideos
+        );
+      }
+    } catch (e) {}
+  });
+
+  document.addEventListener("modalPlayerVolumeChanged", (event) => {
     const { volume: newVolume, isMuted: newIsMuted } = event.detail;
-    
+
     document.dispatchEvent(
       new CustomEvent("mainPlayerVolumeChanged", {
         detail: { volume: newVolume, isMuted: newIsMuted },
@@ -496,7 +541,16 @@ function handleModalVideoChange(event) {
   if (video.videoId) {
     stopAudioPlayback();
     if (modalPlayer && modalPlayer.loadVideoById) {
-      modalPlayer.loadVideoById(video.videoId);
+      try {
+        modalPlayer.loadVideoById(video.videoId);
+        setTimeout(() => {
+          try {
+            if (modalPlayer.playVideo) modalPlayer.playVideo();
+          } catch (e) {}
+        }, 100);
+      } catch (e) {
+        console.warn("[Handle Modal Change] Error loading modal player:", e);
+      }
     }
     if (player && player.pauseVideo) {
       try {
@@ -540,6 +594,11 @@ function setupVideoClickHandlers(currentVideo, videos) {
       if (videoId) {
         stopAudioPlayback();
         loadVideoInPlayer(videoId);
+        setTimeout(() => {
+          try {
+            if (player && player.playVideo) player.playVideo();
+          } catch (e) {}
+        }, 100);
       }
       if (player && typeof syncWithYouTubePlayer === "function") {
         syncWithYouTubePlayer(player, video, videos);
@@ -556,12 +615,18 @@ function setupVideoClickHandlers(currentVideo, videos) {
 
 function updateHero(video) {
   const title = document.querySelector("#video-hero h1");
-  const durationSpan = document.querySelector("#video-hero .flex.items-center.justify-center.gap-6 > div:first-child span");
-  const viewsSpan = document.querySelector("#video-hero .flex.items-center.justify-center.gap-6 > div:last-child span");
+  const durationSpan = document.querySelector(
+    "#video-hero .flex.items-center.justify-center.gap-6 > div:first-child span"
+  );
+  const viewsSpan = document.querySelector(
+    "#video-hero .flex.items-center.justify-center.gap-6 > div:last-child span"
+  );
 
   if (title) title.textContent = video.title || "";
-  if (durationSpan) durationSpan.textContent = `Thời lượng: ${formatDuration(video.duration)}`;
-  if (viewsSpan) viewsSpan.textContent = `${formatViews(video.popularity)} lượt xem`;
+  if (durationSpan)
+    durationSpan.textContent = `Thời lượng: ${formatDuration(video.duration)}`;
+  if (viewsSpan)
+    viewsSpan.textContent = `${formatViews(video.popularity)} lượt xem`;
 }
 
 function hideLoading() {
