@@ -247,11 +247,7 @@ export function updateModalDuration() {
   const state = getPlayerState();
   const durationEl = document.querySelector("#modal-duration-time");
   if (durationEl) {
-    if (state.currentSong && state.currentSong.duration) {
-      durationEl.textContent = formatTime(state.currentSong.duration);
-    } else {
-      durationEl.textContent = formatTime(state.duration);
-    }
+    durationEl.textContent = formatTime(state.duration);
   }
 }
 
