@@ -247,12 +247,17 @@ export function togglePlay() {
 }
 
 export function playNext() {
-  if (playlist.length === 0) return;
+  let playlistToUse = playlist;
+  if (window.currentVideoPageData && window.currentVideoPageData.combinedVideos) {
+    playlistToUse = window.currentVideoPageData.combinedVideos;
+  }
+
+  if (playlistToUse.length === 0) return;
 
   if (isShuffle) {
-    const randomIndex = Math.floor(Math.random() * playlist.length);
+    const randomIndex = Math.floor(Math.random() * playlistToUse.length);
     if (isVideoMode) {
-      const video = playlist[randomIndex];
+      const video = playlistToUse[randomIndex];
       let targetPlayer = youtubePlayer;
 
       if (
@@ -322,12 +327,12 @@ export function playNext() {
         );
       }
     } else {
-      playSong(playlist[randomIndex], playlist, randomIndex);
+      playSong(playlistToUse[randomIndex], playlistToUse, randomIndex);
     }
   } else {
-    const nextIndex = (currentIndex + 1) % playlist.length;
+    const nextIndex = (currentIndex + 1) % playlistToUse.length;
     if (isVideoMode) {
-      const video = playlist[nextIndex];
+      const video = playlistToUse[nextIndex];
       let targetPlayer = youtubePlayer;
 
       if (
@@ -397,13 +402,18 @@ export function playNext() {
         );
       }
     } else {
-      playSong(playlist[nextIndex], playlist, nextIndex);
+      playSong(playlistToUse[nextIndex], playlistToUse, nextIndex);
     }
   }
 }
 
 export function playPrevious() {
-  if (playlist.length === 0) return;
+  let playlistToUse = playlist; 
+  if (window.currentVideoPageData && window.currentVideoPageData.combinedVideos) {
+    playlistToUse = window.currentVideoPageData.combinedVideos;
+  }
+
+  if (playlistToUse.length === 0) return;
 
   if (currentTime > 5 && !isVideoMode) {
     audioPlayer.currentTime = 0;
@@ -411,10 +421,10 @@ export function playPrevious() {
   }
 
   const prevIndex =
-    currentIndex - 1 < 0 ? playlist.length - 1 : currentIndex - 1;
+    currentIndex - 1 < 0 ? playlistToUse.length - 1 : currentIndex - 1;
 
   if (isVideoMode) {
-    const video = playlist[prevIndex];
+    const video = playlistToUse[prevIndex];
     let targetPlayer = youtubePlayer;
 
     if (
@@ -486,7 +496,7 @@ export function playPrevious() {
       );
     }
   } else {
-    playSong(playlist[prevIndex], playlist, prevIndex);
+    playSong(playlistToUse[prevIndex], playlistToUse, prevIndex);
   }
 }
 
