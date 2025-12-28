@@ -13,9 +13,15 @@ import {
 
 export function formatTime(seconds) {
   if (!seconds || isNaN(seconds)) return "0:00";
-  const mins = Math.floor(seconds / 60);
-  const secs = Math.floor(seconds % 60);
-  return `${mins}:${secs.toString().padStart(2, "0")}`;
+  
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = Math.floor(seconds % 60);
+
+  if (h > 0) {
+    return `${h}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+  }
+  return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
 export function updatePlayerInfo() {
@@ -175,6 +181,8 @@ export function updateModalInfo() {
 
   if (modalTitle) modalTitle.textContent = state.currentSong.title || "Unknown";
   if (modalArtist) modalArtist.textContent = "Không rõ nghệ sĩ";
+  
+  updateModalDuration();
 }
 
 export function updateModalPlayButton() {
@@ -212,7 +220,11 @@ export function updateModalDuration() {
   const state = getPlayerState();
   const durationEl = document.querySelector("#modal-duration-time");
   if (durationEl) {
-    durationEl.textContent = formatTime(state.duration);
+    if (state.currentSong && state.currentSong.duration) {
+      durationEl.textContent = formatTime(state.currentSong.duration);
+    } else {
+      durationEl.textContent = formatTime(state.duration);
+    }
   }
 }
 
@@ -518,9 +530,11 @@ function setupMainPlayerVolumeListener() {
   document.addEventListener('mainPlayerVolumeChanged', (event) => {
     const { volume: newVolume, isMuted: newIsMuted } = event.detail;
     const state = getPlayerState();
+    
     if (Math.abs(newVolume - state.volume) <= 1 && newIsMuted === state.isMuted) {
       return;
     }
+    
     if (newIsMuted !== state.isMuted) {
       if (newIsMuted) {
         localStorage.setItem("player_volume_before_mute", String(state.volume));
@@ -534,6 +548,7 @@ function setupMainPlayerVolumeListener() {
     } else if (!newIsMuted && newVolume !== state.volume) {
       localStorage.setItem("player_volume", String(newVolume));
     }
+    
     updateVolumeUI();
     updateModalVolumeUI();
   });

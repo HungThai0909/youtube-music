@@ -14,6 +14,7 @@ let modalPlayer = null;
 let currentVideoData = null;
 let currentVideos = [];
 let mainPlayerVolumeCheckInterval = null;
+let modalPlayerVolumeCheckInterval = null;
 
 export const VideoDetail = (match) => {
   const app = document.querySelector("#app");
@@ -92,6 +93,43 @@ function stopMainPlayerVolumeMonitoring() {
   }
 }
 
+function startModalPlayerVolumeMonitoring() {
+  if (modalPlayerVolumeCheckInterval) {
+    clearInterval(modalPlayerVolumeCheckInterval);
+  }
+
+  let lastVolume = null;
+  let lastMutedState = null;
+
+  modalPlayerVolumeCheckInterval = setInterval(() => {
+    if (!modalPlayer || !modalPlayer.getVolume) return;
+
+    try {
+      const volume = Math.round(modalPlayer.getVolume());
+      const isMuted = modalPlayer.isMuted();
+      if (volume !== lastVolume || isMuted !== lastMutedState) {
+        lastVolume = volume;
+        lastMutedState = isMuted;
+        
+        document.dispatchEvent(
+          new CustomEvent("modalPlayerVolumeChanged", {
+            detail: { volume, isMuted },
+          })
+        );
+      }
+    } catch (e) {
+      console.warn("[Modal Player Volume Monitor] Error:", e);
+    }
+  }, 500);
+}
+
+function stopModalPlayerVolumeMonitoring() {
+  if (modalPlayerVolumeCheckInterval) {
+    clearInterval(modalPlayerVolumeCheckInterval);
+    modalPlayerVolumeCheckInterval = null;
+  }
+}
+
 function createYouTubePlayer(videoId, containerId = "youtube-player") {
   if (!window.YT || !window.YT.Player) {
     setTimeout(() => createYouTubePlayer(videoId, containerId), 100);
@@ -102,6 +140,7 @@ function createYouTubePlayer(videoId, containerId = "youtube-player") {
     stopMainPlayerVolumeMonitoring();
   } else if (containerId === "modal-youtube-player" && modalPlayer) {
     modalPlayer.destroy();
+    stopModalPlayerVolumeMonitoring();
   }
   const newPlayer = new YT.Player(containerId, {
     height: "100%",
@@ -124,6 +163,7 @@ function createYouTubePlayer(videoId, containerId = "youtube-player") {
     startMainPlayerVolumeMonitoring();
   } else {
     modalPlayer = newPlayer;
+    startModalPlayerVolumeMonitoring();
   }
 
   return newPlayer;
@@ -133,16 +173,9 @@ function syncModalPlayerWithMainPlayer() {
   if (!player || !modalPlayer) return;
 
   try {
-    const mainState = player.getPlayerState();
     const mainTime = player.getCurrentTime();
-
     modalPlayer.seekTo(mainTime, true);
 
-    if (mainState === 1) {
-      modalPlayer.playVideo();
-    } else {
-      modalPlayer.pauseVideo();
-    }
     const mainVolume = player.getVolume();
     const mainIsMuted = player.isMuted();
 
@@ -161,16 +194,8 @@ function syncMainPlayerWithModalPlayer() {
   if (!player || !modalPlayer) return;
 
   try {
-    const modalState = modalPlayer.getPlayerState();
     const modalTime = modalPlayer.getCurrentTime();
-
     player.seekTo(modalTime, true);
-
-    if (modalState === 1) {
-      player.playVideo();
-    } else {
-      player.pauseVideo();
-    }
 
     const modalVolume = modalPlayer.getVolume();
     const modalIsMuted = modalPlayer.isMuted();
@@ -200,15 +225,23 @@ function onPlayerReady(event, containerId) {
       try {
         stopAudioPlayback();
       } catch (e) {}
+      
       try {
-        if (player && player.pauseVideo) player.pauseVideo();
+        if (player && player.pauseVideo) {
+          player.pauseVideo();
+        }
       } catch (e) {
         console.warn("[Modal Open] Error pausing main player:", e);
       }
+      
       if (modalPlayer && typeof syncWithYouTubePlayer === "function") {
+        syncModalPlayerWithMainPlayer();
         syncWithYouTubePlayer(modalPlayer, currentVideoData, currentVideos);
+        
         try {
-          if (modalPlayer.playVideo) modalPlayer.playVideo();
+          if (modalPlayer.playVideo) {
+            modalPlayer.playVideo();
+          }
         } catch (e) {
           console.warn("[Modal Open] Error starting modal playback:", e);
         }
@@ -413,25 +446,41 @@ function setupModalEventListeners() {
       }, 100);
     }
   });
+  
   document.addEventListener("playerModalClosed", () => {
     if (modalPlayer && player) {
       try {
+        syncMainPlayerWithModalPlayer();
+        
         if (typeof syncWithYouTubePlayer === "function") {
           syncWithYouTubePlayer(player, currentVideoData, currentVideos);
-        } else {
-          syncMainPlayerWithModalPlayer();
         }
-        if (player && player.playVideo) player.playVideo();
+        
+        if (player && player.playVideo) {
+          player.playVideo();
+        }
       } catch (e) {
         console.warn("[Modal Close] Error resuming main player:", e);
       }
     
       try {
-        if (modalPlayer && modalPlayer.pauseVideo) modalPlayer.pauseVideo();
+        if (modalPlayer && modalPlayer.pauseVideo) {
+          modalPlayer.pauseVideo();
+        }
       } catch (e) {
         console.warn("[Modal Close] Error pausing modal player:", e);
       }
     }
+  });
+  
+  document.addEventListener('modalPlayerVolumeChanged', (event) => {
+    const { volume: newVolume, isMuted: newIsMuted } = event.detail;
+    
+    document.dispatchEvent(
+      new CustomEvent("mainPlayerVolumeChanged", {
+        detail: { volume: newVolume, isMuted: newIsMuted },
+      })
+    );
   });
 }
 
@@ -446,11 +495,19 @@ function handleModalVideoChange(event) {
 
   if (video.videoId) {
     stopAudioPlayback();
-    loadVideoInPlayer(video.videoId);
+    if (modalPlayer && modalPlayer.loadVideoById) {
+      modalPlayer.loadVideoById(video.videoId);
+    }
+    if (player && player.pauseVideo) {
+      try {
+        player.pauseVideo();
+      } catch (e) {
+        console.warn("[Handle Modal Change] Error pausing main player:", e);
+      }
+    }
   }
-
-  if (player && typeof syncWithYouTubePlayer === "function") {
-    syncWithYouTubePlayer(player, video, currentVideos);
+  if (modalPlayer && typeof syncWithYouTubePlayer === "function") {
+    syncWithYouTubePlayer(modalPlayer, video, currentVideos);
   }
 }
 

@@ -31,11 +31,44 @@ export const SongDetail = (match) => {
   initSidebarToggle();
   initSearchHandler();
   loadSongDetail(songId);
+  setupPlayerChangeListener();
 };
 
 export const setSongDetailRouter = (router) => {
   currentRouter = router;
 };
+
+function setupPlayerChangeListener() {
+  document.addEventListener('playerSongChanged', (event) => {
+    const { song, index } = event.detail;
+    if (song) {
+      updateHero(song);
+      updateActiveTrack(song);
+    }
+  });
+}
+
+function updateActiveTrack(song) {
+  document.querySelectorAll('.track-item').forEach(item => {
+    item.classList.remove('bg-gray-800/50');
+    const title = item.querySelector('.track-title');
+    const number = item.querySelector('.track-number');
+    if (title) title.classList.remove('text-cyan-400');
+    if (number) number.classList.remove('text-cyan-400');
+  });
+
+  if (song && song.id) {
+    const activeTrack = document.querySelector(`[data-track-id="${song.id}"]`);
+    if (activeTrack) {
+      activeTrack.classList.add('bg-gray-800/50');
+      const title = activeTrack.querySelector('.track-title');
+      const number = activeTrack.querySelector('.track-number');
+      if (title) title.classList.add('text-cyan-400');
+      if (number) number.classList.add('text-cyan-400');
+      activeTrack.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }
+}
 
 async function fetchSong(id) {
   const res = await fetch(
@@ -77,15 +110,16 @@ function renderTracksList(tracks) {
       <h2 class="text-2xl font-bold text-white mb-4">
         Danh sách bài hát
       </h2>
-      <div class="space-y-2">
+      <div id="tracks-list" class="space-y-2">
         ${tracks
           .map(
             (t, i) => `
           <div
             class="track-item group flex items-center gap-4 py-3 px-4
                    rounded-lg hover:bg-gray-800 cursor-pointer transition"
-            data-track-index="${i}">
-            <span class="text-gray-400 w-8 text-lg font-medium">
+            data-track-index="${i}"
+            data-track-id="${t.id || ''}">
+            <span class="track-number text-gray-400 w-8 text-lg font-medium">
               ${i + 1}
             </span>
             <div class="relative w-14 h-14 rounded-lg overflow-hidden shadow-md">
@@ -102,7 +136,7 @@ function renderTracksList(tracks) {
               </div>
             </div>
             <div class="flex-1 min-w-0">
-              <h3 class="text-white font-medium truncate">
+              <h3 class="track-title text-white font-medium truncate">
                 ${t.title}
               </h3>
               <p class="text-gray-400 text-xs truncate">
@@ -145,13 +179,14 @@ async function renderHero(data) {
     <div class="flex gap-12">
       <div class="w-1/2 sticky top-20 self-start text-center">
         <img
+          id="hero-thumbnail"
           src="${data.thumbnails?.[0]}"
           class="w-96 h-96 rounded-2xl shadow-2xl object-cover mx-auto mb-8"
         />
-        <h1 class="text-3xl font-bold text-white mb-4">
+        <h1 id="hero-title" class="text-3xl font-bold text-white mb-4">
           ${data.title}
         </h1>
-        <div class="text-white">
+        <div id="hero-duration" class="text-white">
           Thời lượng: ${formatDuration(data.duration)}
         </div>
       </div>
@@ -175,16 +210,18 @@ function setupTrackClickHandlers(tracks) {
       const index = Number(item.dataset.trackIndex);
       const track = tracks[index];
       if (!track) return;
+      
       updateHero(track);
+      updateActiveTrack(track);
       playSong(track, tracks, index);
     });
   });
 }
 
 function updateHero(song) {
-  const img = document.querySelector("#song-hero img");
-  const title = document.querySelector("#song-hero h1");
-  const duration = document.querySelector("#song-hero .text-white:not(h1)");
+  const img = document.querySelector("#hero-thumbnail");
+  const title = document.querySelector("#hero-title");
+  const duration = document.querySelector("#hero-duration");
 
   if (img) img.src = song.thumbnails?.[0] || "";
   if (title) title.textContent = song.title || "";

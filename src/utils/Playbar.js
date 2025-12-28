@@ -108,6 +108,9 @@ export async function playSong(songData, playlistArray = [], index = 0) {
   updatePlayerInfo();
   updateModalInfo();
   updateModalPlaylist();
+  document.dispatchEvent(new CustomEvent('playerSongChanged', {
+    detail: { song: songData, index }
+  }));
 
   const audioUrl = songData.audioUrl || (await getAudioUrl(songData.id));
 
@@ -254,6 +257,9 @@ export function playNext() {
         updatePlayerInfo();
         updateModalInfo();
         updateModalPlaylist();
+        document.dispatchEvent(new CustomEvent('playerSongChanged', {
+          detail: { song: video, index: randomIndex }
+        }));
         document.dispatchEvent(new CustomEvent('modalVideoChanged', {
           detail: { index: randomIndex, video }
         }));
@@ -272,6 +278,9 @@ export function playNext() {
         updatePlayerInfo();
         updateModalInfo();
         updateModalPlaylist();
+        document.dispatchEvent(new CustomEvent('playerSongChanged', {
+          detail: { song: video, index: nextIndex }
+        }));
         document.dispatchEvent(new CustomEvent('modalVideoChanged', {
           detail: { index: nextIndex, video }
         }));
@@ -301,6 +310,9 @@ export function playPrevious() {
       updatePlayerInfo();
       updateModalInfo();
       updateModalPlaylist();
+      document.dispatchEvent(new CustomEvent('playerSongChanged', {
+        detail: { song: video, index: prevIndex }
+      }));
       document.dispatchEvent(new CustomEvent('modalVideoChanged', {
         detail: { index: prevIndex, video }
       }));
@@ -430,13 +442,29 @@ export function toggleMute() {
 }
 
 export function toggleRepeat() {
-  isRepeat = !isRepeat;
+  if (!isRepeat) {
+    isRepeat = true;
+    isShuffle = false;
+    updateShuffleButton();
+    updateModalShuffleButton();
+  } else {
+    isRepeat = false;
+  }
+  
   updateRepeatButton();
   updateModalRepeatButton();
 }
 
 export function toggleShuffle() {
-  isShuffle = !isShuffle;
+  if (!isShuffle) {
+    isShuffle = true;
+    isRepeat = false;
+    updateRepeatButton();
+    updateModalRepeatButton();
+  } else {
+    isShuffle = false;
+  }
+  
   updateShuffleButton();
   updateModalShuffleButton();
 }
@@ -471,15 +499,32 @@ function startVolumeMonitoring() {
     clearInterval(volumeCheckInterval);
   }
   
+  let lastVolume = null;
+  let lastMutedState = null;
+  
   volumeCheckInterval = setInterval(() => {
     if (!youtubePlayer || !youtubePlayer.getVolume) return;
     
     try {
       const ytVolume = Math.round(youtubePlayer.getVolume());
       const ytIsMuted = youtubePlayer.isMuted();
-      if (ytIsMuted !== isMuted || Math.abs(ytVolume - volume) > 1) {
-        volume = ytVolume;
-        isMuted = ytIsMuted;
+      
+      if (ytIsMuted !== lastMutedState || Math.abs(ytVolume - (lastVolume || 0)) > 1) {
+        lastVolume = ytVolume;
+        lastMutedState = ytIsMuted;
+        
+        if (ytIsMuted !== isMuted) {
+          isMuted = ytIsMuted;
+          if (ytIsMuted) {
+            localStorage.setItem("player_volume_before_mute", String(volume));
+            volume = 0;
+          } else {
+            const volumeBeforeMute = parseInt(localStorage.getItem("player_volume_before_mute")) || 50;
+            volume = volumeBeforeMute;
+          }
+        } else if (!ytIsMuted && ytVolume !== volume) {
+          volume = ytVolume;
+        }
         
         localStorage.setItem("player_volume", String(volume));
         localStorage.setItem("player_muted", String(isMuted));
@@ -511,6 +556,10 @@ export function syncWithYouTubePlayer(player, videoData, videoList = []) {
   updatePlayerInfo();
   updateModalInfo();
   updateModalPlaylist();
+  document.dispatchEvent(new CustomEvent('playerSongChanged', {
+    detail: { song: videoData, index: currentIndex }
+  }));
+  
   try {
     if (youtubePlayer && youtubePlayer.setVolume) {
       youtubePlayer.setVolume(volume);
