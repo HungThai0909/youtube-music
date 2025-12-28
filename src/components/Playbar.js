@@ -485,23 +485,23 @@ export function createPlayer() {
               </div>
             </div>
             <div class="flex items-center gap-6">
-              <button id="modal-shuffle-btn" class="text-gray-400 hover:text-white transition">
+              <button id="modal-shuffle-btn" class="text-gray-400 hover:text-white transition cursor-pointer">
                 <i class="fas fa-random text-2xl"></i>
               </button>
-              <button id="modal-prev-btn" class="text-white hover:scale-110 transition">
+              <button id="modal-prev-btn" class="text-white hover:scale-110 transition cursor-pointer">
                 <i class="fas fa-step-backward text-3xl"></i>
               </button>
-              <button id="modal-play-btn" class="w-16 h-16 bg-white rounded-full flex items-center justify-center hover:scale-105 transition">
+              <button id="modal-play-btn" class="w-16 h-16 bg-white rounded-full flex items-center justify-center hover:scale-105 transition cursor-pointer">
                 <i class="fas fa-play text-black text-4xl ml-1"></i>
               </button>
-              <button id="modal-next-btn" class="text-white hover:scale-110 transition">
+              <button id="modal-next-btn" class="text-white hover:scale-110 transition cursor-pointer">
                 <i class="fas fa-step-forward text-3xl"></i>
               </button>
-              <button id="modal-repeat-btn" class="text-gray-400 hover:text-white transition">
+              <button id="modal-repeat-btn" class="text-gray-400 hover:text-white transition cursor-pointer">
                 <i class="fas fa-redo text-2xl"></i>
               </button>
               <div class="flex items-center gap-2 ml-4">
-                <button id="modal-volume-btn" class="text-white hover:text-gray-300 transition">
+                <button id="modal-volume-btn" class="text-white hover:text-gray-300 transition cursor-pointer">
                   <i class="fas fa-volume-up text-2xl"></i>
                 </button>
                 <input type="range" id="modal-volume-slider" min="0" max="100" value="100"

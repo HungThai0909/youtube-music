@@ -6,6 +6,8 @@ import {
   playSong,
   syncWithYouTubePlayer,
   stopAudioPlayback,
+  getPlayerState,
+  playNext,
 } from "../utils/Playbar";
 
 let currentRouter = null;
@@ -254,22 +256,59 @@ function onPlayerReady(event, containerId) {
 
 function onPlayerStateChange(event, containerId) {
   if (event.data === 0) {
-    playNextVideo();
+    const state = getPlayerState();
+    if (state.isRepeat && currentVideoData && currentVideoData.videoId) {
+      const targetPlayer =
+        containerId === "youtube-player" ? player : modalPlayer;
+      if (targetPlayer && targetPlayer.seekTo) {
+        try {
+          targetPlayer.seekTo(0, true);
+          setTimeout(() => {
+            try {
+              if (targetPlayer.playVideo) targetPlayer.playVideo();
+            } catch (e) {
+              console.warn("[Repeat] Error playing video:", e);
+            }
+          }, 100);
+        } catch (e) {
+          console.warn("[Repeat] Error restarting video:", e);
+        }
+      }
+    } else if (
+      state.playlist &&
+      state.playlist.length > 0 &&
+      state.isVideoMode
+    ) {
+      playNext();
+    } else {
+      playNextVideo();
+    }
   }
 }
 
 function playNextVideo() {
-  if (currentVideos.length === 0) return;
-  const currentIndex = currentVideos.findIndex(
-    (v) => v.id === currentVideoData?.id
-  );
-  const nextIndex = (currentIndex + 1) % currentVideos.length;
-  const nextVideo = currentVideos[nextIndex];
-  if (nextVideo && nextVideo.videoId) {
-    loadVideoInPlayer(nextVideo.videoId);
-    updateHero(nextVideo);
-    updateVideoSelection(nextIndex);
-    currentVideoData = nextVideo;
+  const state = getPlayerState();
+  if (state.isVideoMode && state.playlist && state.playlist.length > 0) {
+    playNext();
+  } else if (currentVideos.length === 0) {
+    return;
+  } else {
+    const currentIndex = currentVideos.findIndex(
+      (v) => v.id === currentVideoData?.id
+    );
+    let nextIndex;
+    if (state.isShuffle) {
+      nextIndex = Math.floor(Math.random() * currentVideos.length);
+    } else {
+      nextIndex = (currentIndex + 1) % currentVideos.length;
+    }
+    const nextVideo = currentVideos[nextIndex];
+    if (nextVideo && nextVideo.videoId) {
+      loadVideoInPlayer(nextVideo.videoId);
+      updateHero(nextVideo);
+      updateVideoSelection(nextIndex);
+      currentVideoData = nextVideo;
+    }
   }
 }
 
@@ -474,7 +513,7 @@ function setupModalEventListeners() {
   });
 
   document.addEventListener("playerSongChanged", (event) => {
-    const { song } = event.detail || {};
+    const { song, skipSync } = event.detail || {};
     if (!song) return;
 
     currentVideoData = song;
@@ -482,6 +521,10 @@ function setupModalEventListeners() {
 
     const foundIndex = currentVideos.findIndex((v) => v.id === song.id);
     if (foundIndex !== -1) updateVideoSelection(foundIndex);
+
+    if (skipSync) {
+      return;
+    }
 
     try {
       stopAudioPlayback();
@@ -512,7 +555,8 @@ function setupModalEventListeners() {
         syncWithYouTubePlayer(
           targetPlayer || player || modalPlayer,
           song,
-          currentVideos
+          currentVideos,
+          true
         );
       }
     } catch (e) {}

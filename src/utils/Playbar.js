@@ -19,6 +19,7 @@ let youtubePlayer = null;
 let youtubeUpdateInterval = null;
 let isVideoMode = false;
 let volumeCheckInterval = null;
+let isSyncing = false;
 
 function initAudioPlayer() {
   if (!audioPlayer) {
@@ -545,7 +546,10 @@ function stopVolumeMonitoring() {
   }
 }
 
-export function syncWithYouTubePlayer(player, videoData, videoList = []) {
+export function syncWithYouTubePlayer(player, videoData, videoList = [], skipEvent = false) {
+  if (isSyncing) return;
+  isSyncing = true;
+  
   youtubePlayer = player;
   currentSong = videoData;
   playlist = videoList;
@@ -556,9 +560,14 @@ export function syncWithYouTubePlayer(player, videoData, videoList = []) {
   updatePlayerInfo();
   updateModalInfo();
   updateModalPlaylist();
-  document.dispatchEvent(new CustomEvent('playerSongChanged', {
-    detail: { song: videoData, index: currentIndex }
-  }));
+  
+  if (!skipEvent) {
+    document.dispatchEvent(new CustomEvent('playerSongChanged', {
+      detail: { song: videoData, index: currentIndex, skipSync: true }
+    }));
+  }
+  
+  isSyncing = false;
   
   try {
     if (youtubePlayer && youtubePlayer.setVolume) {
