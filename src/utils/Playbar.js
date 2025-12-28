@@ -97,7 +97,7 @@ export function stopAudioPlayback() {
 export async function playSong(songData, playlistArray = [], index = 0) {
   stopYouTubeSync();
   isVideoMode = false;
-  
+
   const requestId = ++lastPlayRequestId;
   isLoadingAudio = true;
   currentSong = songData;
@@ -109,9 +109,11 @@ export async function playSong(songData, playlistArray = [], index = 0) {
   updatePlayerInfo();
   updateModalInfo();
   updateModalPlaylist();
-  document.dispatchEvent(new CustomEvent('playerSongChanged', {
-    detail: { song: songData, index }
-  }));
+  document.dispatchEvent(
+    new CustomEvent("playerSongChanged", {
+      detail: { song: songData, index },
+    })
+  );
 
   const audioUrl = songData.audioUrl || (await getAudioUrl(songData.id));
 
@@ -251,19 +253,73 @@ export function playNext() {
     const randomIndex = Math.floor(Math.random() * playlist.length);
     if (isVideoMode) {
       const video = playlist[randomIndex];
-      if (video.videoId && youtubePlayer && youtubePlayer.loadVideoById) {
-        youtubePlayer.loadVideoById(video.videoId);
+      let targetPlayer = youtubePlayer;
+
+      if (
+        window.currentVideoPageData &&
+        window.currentVideoPageData.combinedVideos
+      ) {
+        if (window.currentVideoPageData.player) {
+          targetPlayer = window.currentVideoPageData.player;
+          youtubePlayer = targetPlayer;
+        } else {
+          const videoDetailsContainer =
+            document.querySelector("#youtube-player");
+          if (videoDetailsContainer) {
+            try {
+              const iframe = videoDetailsContainer.querySelector("iframe");
+              if (iframe && window.YT && window.YT.get) {
+                const playerId = iframe.id || "youtube-player";
+                targetPlayer = window.YT.get(playerId);
+                if (targetPlayer) {
+                  youtubePlayer = targetPlayer;
+                  window.currentVideoPageData.player = targetPlayer;
+                }
+              }
+            } catch (e) {
+              console.warn("[PlayNext] Error getting VideoDetails player:", e);
+            }
+          }
+        }
+      }
+
+      if (video.videoId && targetPlayer && targetPlayer.loadVideoById) {
+        targetPlayer.loadVideoById(video.videoId);
         currentSong = video;
         currentIndex = randomIndex;
+        currentTime = 0;
         updatePlayerInfo();
         updateModalInfo();
         updateModalPlaylist();
-        document.dispatchEvent(new CustomEvent('playerSongChanged', {
-          detail: { song: video, index: randomIndex }
-        }));
-        document.dispatchEvent(new CustomEvent('modalVideoChanged', {
-          detail: { index: randomIndex, video }
-        }));
+
+        setTimeout(() => {
+          try {
+            if (targetPlayer.seekTo) {
+              targetPlayer.seekTo(0, true);
+            }
+            if (targetPlayer.playVideo) {
+              targetPlayer.playVideo();
+            }
+          } catch (e) {
+            console.warn("[PlayNext] Error playing video:", e);
+          }
+        }, 100);
+
+        document.dispatchEvent(
+          new CustomEvent("playerSongChanged", {
+            detail: { song: video, index: randomIndex, skipSync: true },
+          })
+        );
+        document.dispatchEvent(
+          new CustomEvent("videoDetailChanged", {
+            detail: { index: randomIndex, video },
+          })
+        );
+        document.dispatchEvent(
+          new CustomEvent("modalVideoChanged", {
+            detail: { index: randomIndex, video },
+          })
+        );
       }
     } else {
       playSong(playlist[randomIndex], playlist, randomIndex);
@@ -272,19 +328,73 @@ export function playNext() {
     const nextIndex = (currentIndex + 1) % playlist.length;
     if (isVideoMode) {
       const video = playlist[nextIndex];
-      if (video.videoId && youtubePlayer && youtubePlayer.loadVideoById) {
-        youtubePlayer.loadVideoById(video.videoId);
+      let targetPlayer = youtubePlayer;
+
+      if (
+        window.currentVideoPageData &&
+        window.currentVideoPageData.combinedVideos
+      ) {
+        if (window.currentVideoPageData.player) {
+          targetPlayer = window.currentVideoPageData.player;
+          youtubePlayer = targetPlayer;
+        } else {
+          const videoDetailsContainer =
+            document.querySelector("#youtube-player");
+          if (videoDetailsContainer) {
+            try {
+              const iframe = videoDetailsContainer.querySelector("iframe");
+              if (iframe && window.YT && window.YT.get) {
+                const playerId = iframe.id || "youtube-player";
+                targetPlayer = window.YT.get(playerId);
+                if (targetPlayer) {
+                  youtubePlayer = targetPlayer;
+                  window.currentVideoPageData.player = targetPlayer;
+                }
+              }
+            } catch (e) {
+              console.warn("[PlayNext] Error getting VideoDetails player:", e);
+            }
+          }
+        }
+      }
+
+      if (video.videoId && targetPlayer && targetPlayer.loadVideoById) {
+        targetPlayer.loadVideoById(video.videoId);
         currentSong = video;
         currentIndex = nextIndex;
+        currentTime = 0;
         updatePlayerInfo();
         updateModalInfo();
         updateModalPlaylist();
-        document.dispatchEvent(new CustomEvent('playerSongChanged', {
-          detail: { song: video, index: nextIndex }
-        }));
-        document.dispatchEvent(new CustomEvent('modalVideoChanged', {
-          detail: { index: nextIndex, video }
-        }));
+
+        setTimeout(() => {
+          try {
+            if (targetPlayer.seekTo) {
+              targetPlayer.seekTo(0, true);
+            }
+            if (targetPlayer.playVideo) {
+              targetPlayer.playVideo();
+            }
+          } catch (e) {
+            console.warn("[PlayNext] Error playing video:", e);
+          }
+        }, 100);
+
+        document.dispatchEvent(
+          new CustomEvent("playerSongChanged", {
+            detail: { song: video, index: nextIndex, skipSync: true },
+          })
+        );
+        document.dispatchEvent(
+          new CustomEvent("videoDetailChanged", {
+            detail: { index: nextIndex, video },
+          })
+        );
+        document.dispatchEvent(
+          new CustomEvent("modalVideoChanged", {
+            detail: { index: nextIndex, video },
+          })
+        );
       }
     } else {
       playSong(playlist[nextIndex], playlist, nextIndex);
@@ -300,23 +410,80 @@ export function playPrevious() {
     return;
   }
 
-  const prevIndex = currentIndex - 1 < 0 ? playlist.length - 1 : currentIndex - 1;
-  
+  const prevIndex =
+    currentIndex - 1 < 0 ? playlist.length - 1 : currentIndex - 1;
+
   if (isVideoMode) {
     const video = playlist[prevIndex];
-    if (video.videoId && youtubePlayer && youtubePlayer.loadVideoById) {
-      youtubePlayer.loadVideoById(video.videoId);
+    let targetPlayer = youtubePlayer;
+
+    if (
+      window.currentVideoPageData &&
+      window.currentVideoPageData.combinedVideos
+    ) {
+      if (window.currentVideoPageData.player) {
+        targetPlayer = window.currentVideoPageData.player;
+        youtubePlayer = targetPlayer;
+      } else {
+        const videoDetailsContainer = document.querySelector("#youtube-player");
+        if (videoDetailsContainer) {
+          try {
+            const iframe = videoDetailsContainer.querySelector("iframe");
+            if (iframe && window.YT && window.YT.get) {
+              const playerId = iframe.id || "youtube-player";
+              targetPlayer = window.YT.get(playerId);
+              if (targetPlayer) {
+                youtubePlayer = targetPlayer;
+                window.currentVideoPageData.player = targetPlayer;
+              }
+            }
+          } catch (e) {
+            console.warn(
+              "[PlayPrevious] Error getting VideoDetails player:",
+              e
+            );
+          }
+        }
+      }
+    }
+
+    if (video.videoId && targetPlayer && targetPlayer.loadVideoById) {
+      targetPlayer.loadVideoById(video.videoId);
       currentSong = video;
       currentIndex = prevIndex;
+      currentTime = 0;
       updatePlayerInfo();
       updateModalInfo();
       updateModalPlaylist();
-      document.dispatchEvent(new CustomEvent('playerSongChanged', {
-        detail: { song: video, index: prevIndex }
-      }));
-      document.dispatchEvent(new CustomEvent('modalVideoChanged', {
-        detail: { index: prevIndex, video }
-      }));
+
+      setTimeout(() => {
+        try {
+          if (targetPlayer.seekTo) {
+            targetPlayer.seekTo(0, true);
+          }
+          if (targetPlayer.playVideo) {
+            targetPlayer.playVideo();
+          }
+        } catch (e) {
+          console.warn("[PlayPrevious] Error playing video:", e);
+        }
+      }, 100);
+
+      document.dispatchEvent(
+        new CustomEvent("playerSongChanged", {
+          detail: { song: video, index: prevIndex, skipSync: true },
+        })
+      );
+      document.dispatchEvent(
+        new CustomEvent("videoDetailChanged", {
+          detail: { index: prevIndex, video },
+        })
+      );
+      document.dispatchEvent(
+        new CustomEvent("modalVideoChanged", {
+          detail: { index: prevIndex, video },
+        })
+      );
     }
   } else {
     playSong(playlist[prevIndex], playlist, prevIndex);
@@ -349,7 +516,7 @@ export function seek(time) {
 export function setVolume(vol) {
   const newVol = Math.max(0, Math.min(100, parseInt(vol) || 0));
   volume = newVol;
-  
+
   if (audioPlayer) {
     audioPlayer.volume = volume / 100;
     if (isMuted && volume > 0) {
@@ -358,7 +525,7 @@ export function setVolume(vol) {
       localStorage.setItem("player_muted", "false");
     }
   }
-  
+
   if (youtubePlayer && youtubePlayer.setVolume) {
     try {
       youtubePlayer.setVolume(volume);
@@ -371,7 +538,7 @@ export function setVolume(vol) {
       console.warn("[YouTube Volume] Error:", e);
     }
   }
-  
+
   localStorage.setItem("player_volume", String(volume));
   updateVolumeUI();
   updateModalVolumeUI();
@@ -388,7 +555,10 @@ export function toggleMute() {
         isMuted = true;
         youtubePlayer.mute();
       } else {
-        const volumeBeforeMute = parseInt(localStorage.getItem("player_volume_before_mute")) || prevVolume || 50;
+        const volumeBeforeMute =
+          parseInt(localStorage.getItem("player_volume_before_mute")) ||
+          prevVolume ||
+          50;
         volume = volumeBeforeMute;
         isMuted = false;
         youtubePlayer.unMute();
@@ -403,7 +573,7 @@ export function toggleMute() {
       console.warn("[YouTube Mute] Error:", e);
     }
   }
-  
+
   if (!audioPlayer) {
     if (!isMuted) {
       localStorage.setItem("player_volume_before_mute", String(volume));
@@ -411,7 +581,10 @@ export function toggleMute() {
       volume = 0;
       isMuted = true;
     } else {
-      const volumeBeforeMute = parseInt(localStorage.getItem("player_volume_before_mute")) || prevVolume || 50;
+      const volumeBeforeMute =
+        parseInt(localStorage.getItem("player_volume_before_mute")) ||
+        prevVolume ||
+        50;
       volume = volumeBeforeMute;
       isMuted = false;
     }
@@ -430,7 +603,10 @@ export function toggleMute() {
     audioPlayer.muted = true;
     audioPlayer.volume = 0;
   } else {
-    const volumeBeforeMute = parseInt(localStorage.getItem("player_volume_before_mute")) || prevVolume || 50;
+    const volumeBeforeMute =
+      parseInt(localStorage.getItem("player_volume_before_mute")) ||
+      prevVolume ||
+      50;
     volume = volumeBeforeMute;
     isMuted = false;
     audioPlayer.muted = false;
@@ -451,7 +627,7 @@ export function toggleRepeat() {
   } else {
     isRepeat = false;
   }
-  
+
   updateRepeatButton();
   updateModalRepeatButton();
 }
@@ -465,7 +641,7 @@ export function toggleShuffle() {
   } else {
     isShuffle = false;
   }
-  
+
   updateShuffleButton();
   updateModalShuffleButton();
 }
@@ -492,44 +668,48 @@ import {
   setupModalProgressHover,
   setupProgressHover,
   createPlayer,
-  attachEventListeners
+  attachEventListeners,
 } from "../components/Playbar.js";
 
 function startVolumeMonitoring() {
   if (volumeCheckInterval) {
     clearInterval(volumeCheckInterval);
   }
-  
+
   let lastVolume = null;
   let lastMutedState = null;
-  
+
   volumeCheckInterval = setInterval(() => {
     if (!youtubePlayer || !youtubePlayer.getVolume) return;
-    
+
     try {
       const ytVolume = Math.round(youtubePlayer.getVolume());
       const ytIsMuted = youtubePlayer.isMuted();
-      
-      if (ytIsMuted !== lastMutedState || Math.abs(ytVolume - (lastVolume || 0)) > 1) {
+
+      if (
+        ytIsMuted !== lastMutedState ||
+        Math.abs(ytVolume - (lastVolume || 0)) > 1
+      ) {
         lastVolume = ytVolume;
         lastMutedState = ytIsMuted;
-        
+
         if (ytIsMuted !== isMuted) {
           isMuted = ytIsMuted;
           if (ytIsMuted) {
             localStorage.setItem("player_volume_before_mute", String(volume));
             volume = 0;
           } else {
-            const volumeBeforeMute = parseInt(localStorage.getItem("player_volume_before_mute")) || 50;
+            const volumeBeforeMute =
+              parseInt(localStorage.getItem("player_volume_before_mute")) || 50;
             volume = volumeBeforeMute;
           }
         } else if (!ytIsMuted && ytVolume !== volume) {
           volume = ytVolume;
         }
-        
+
         localStorage.setItem("player_volume", String(volume));
         localStorage.setItem("player_muted", String(isMuted));
-        
+
         updateVolumeUI();
         updateModalVolumeUI();
       }
@@ -546,10 +726,15 @@ function stopVolumeMonitoring() {
   }
 }
 
-export function syncWithYouTubePlayer(player, videoData, videoList = [], skipEvent = false) {
+export function syncWithYouTubePlayer(
+  player,
+  videoData,
+  videoList = [],
+  skipEvent = false
+) {
   if (isSyncing) return;
   isSyncing = true;
-  
+
   youtubePlayer = player;
   currentSong = videoData;
   playlist = videoList;
@@ -560,15 +745,17 @@ export function syncWithYouTubePlayer(player, videoData, videoList = [], skipEve
   updatePlayerInfo();
   updateModalInfo();
   updateModalPlaylist();
-  
+
   if (!skipEvent) {
-    document.dispatchEvent(new CustomEvent('playerSongChanged', {
-      detail: { song: videoData, index: currentIndex, skipSync: true }
-    }));
+    document.dispatchEvent(
+      new CustomEvent("playerSongChanged", {
+        detail: { song: videoData, index: currentIndex, skipSync: true },
+      })
+    );
   }
-  
+
   isSyncing = false;
-  
+
   try {
     if (youtubePlayer && youtubePlayer.setVolume) {
       youtubePlayer.setVolume(volume);
@@ -582,7 +769,7 @@ export function syncWithYouTubePlayer(player, videoData, videoList = [], skipEve
     console.warn("[YouTube Volume Sync] Error:", e);
   }
   startVolumeMonitoring();
-  
+
   if (youtubeUpdateInterval) {
     clearInterval(youtubeUpdateInterval);
   }
@@ -621,7 +808,7 @@ export function stopYouTubeSync() {
     youtubeUpdateInterval = null;
   }
   stopVolumeMonitoring();
-  
+
   if (youtubePlayer) {
     try {
       youtubePlayer.pauseVideo();
@@ -645,6 +832,6 @@ export function getPlayerState() {
     playlist,
     currentIndex,
     isVideoMode,
-    youtubePlayer
+    youtubePlayer,
   };
 }

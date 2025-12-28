@@ -163,6 +163,9 @@ function createYouTubePlayer(videoId, containerId = "youtube-player") {
   if (containerId === "youtube-player") {
     player = newPlayer;
     startMainPlayerVolumeMonitoring();
+    if (window.currentVideoPageData) {
+      window.currentVideoPageData.player = newPlayer;
+    }
   } else {
     modalPlayer = newPlayer;
     startModalPlayerVolumeMonitoring();
@@ -221,6 +224,9 @@ function onPlayerReady(event, containerId) {
     if (playerInstance && typeof syncWithYouTubePlayer === "function") {
       stopAudioPlayback();
       syncWithYouTubePlayer(playerInstance, currentVideoData, currentVideos);
+      if (window.currentVideoPageData) {
+        window.currentVideoPageData.player = playerInstance;
+      }
     }
   } else if (containerId === "modal-youtube-player") {
     setTimeout(() => {
@@ -358,6 +364,7 @@ async function loadVideoDetail(id) {
       }, 100);
     }
 
+    await waitForThumbnailsToLoad();
     hideLoading();
   } catch (err) {
     console.error(err);
@@ -571,6 +578,45 @@ function setupModalEventListeners() {
       })
     );
   });
+
+  document.addEventListener("videoDetailChanged", (event) => {
+    const { index, video } = event.detail || {};
+    if (!video) return;
+
+    currentVideoData = video;
+    updateHero(video);
+
+    const foundIndex = currentVideos.findIndex((v) => v.id === video.id);
+    if (foundIndex !== -1) {
+      updateVideoSelection(foundIndex);
+    } else if (typeof index === "number") {
+      updateVideoSelection(index);
+    }
+
+    if (video.videoId && player && player.loadVideoById) {
+      try {
+        player.loadVideoById(video.videoId);
+        setTimeout(() => {
+          try {
+            if (player && player.seekTo) {
+              player.seekTo(0, true);
+            }
+            if (player && player.playVideo) {
+              player.playVideo();
+            }
+          } catch (e) {
+            console.warn("[VideoDetailChanged] Error playing video:", e);
+          }
+        }, 100);
+      } catch (e) {
+        console.warn("[VideoDetailChanged] Error loading video:", e);
+      }
+    }
+
+    if (player && typeof syncWithYouTubePlayer === "function") {
+      syncWithYouTubePlayer(player, video, currentVideos, true);
+    }
+  });
 }
 
 function handleModalVideoChange(event) {
@@ -640,7 +686,12 @@ function setupVideoClickHandlers(currentVideo, videos) {
         loadVideoInPlayer(videoId);
         setTimeout(() => {
           try {
-            if (player && player.playVideo) player.playVideo();
+            if (player && player.seekTo) {
+              player.seekTo(0, true);
+            }
+            if (player && player.playVideo) {
+              player.playVideo();
+            }
           } catch (e) {}
         }, 100);
       }
@@ -671,6 +722,19 @@ function updateHero(video) {
     durationSpan.textContent = `Thời lượng: ${formatDuration(video.duration)}`;
   if (viewsSpan)
     viewsSpan.textContent = `${formatViews(video.popularity)} lượt xem`;
+}
+
+async function waitForThumbnailsToLoad() {
+  const images = document.querySelectorAll("#video-hero img");
+  const imagePromises = Array.from(images).map((img) => {
+    if (img.complete) return Promise.resolve();
+    return new Promise((resolve, reject) => {
+      img.addEventListener("load", resolve);
+      img.addEventListener("error", resolve);
+      setTimeout(resolve, 3000);
+    });
+  });
+  await Promise.all(imagePromises);
 }
 
 function hideLoading() {

@@ -1,25 +1,27 @@
-import { 
-  togglePlay, 
-  playNext, 
-  playPrevious, 
-  seek, 
-  setVolume, 
-  toggleMute, 
-  toggleRepeat, 
+import {
+  togglePlay,
+  playNext,
+  playPrevious,
+  seek,
+  setVolume,
+  toggleMute,
+  toggleRepeat,
   toggleShuffle,
   playSong,
-  getPlayerState
+  getPlayerState,
 } from "../utils/Playbar";
 
 export function formatTime(seconds) {
   if (!seconds || isNaN(seconds)) return "0:00";
-  
+
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
   const s = Math.floor(seconds % 60);
 
   if (h > 0) {
-    return `${h}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+    return `${h}:${m.toString().padStart(2, "0")}:${s
+      .toString()
+      .padStart(2, "0")}`;
   }
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
@@ -27,7 +29,7 @@ export function formatTime(seconds) {
 export function updatePlayerInfo() {
   const state = getPlayerState();
   if (!state.currentSong) return;
-  
+
   const thumbnail = document.querySelector("#player-thumbnail");
   const title = document.querySelector("#player-title");
   const artist = document.querySelector("#player-artist");
@@ -54,7 +56,7 @@ export function updateProgressBar() {
   const progressBar = document.querySelector("#progress-bar");
   const progressFill = document.querySelector("#progress-fill");
   const progressThumb = document.querySelector("#progress-thumb");
-  
+
   if (progressBar && state.duration) {
     const percentage = (state.currentTime / state.duration) * 100;
     progressBar.value = percentage;
@@ -139,7 +141,7 @@ export function toggleModal() {
 
   const state = getPlayerState();
   const isHidden = modal.classList.contains("hidden");
-  
+
   if (isHidden) {
     modal.classList.remove("hidden");
     updateModalInfo();
@@ -147,9 +149,11 @@ export function toggleModal() {
     updateModalVolumeUI();
     updateModalRepeatButton();
     updateModalShuffleButton();
-    document.dispatchEvent(new CustomEvent("playerModalOpened", { 
-      detail: { isVideoMode: state.isVideoMode } 
-    }));
+    document.dispatchEvent(
+      new CustomEvent("playerModalOpened", {
+        detail: { isVideoMode: state.isVideoMode },
+      })
+    );
   } else {
     modal.classList.add("hidden");
     document.dispatchEvent(new CustomEvent("playerModalClosed"));
@@ -166,22 +170,45 @@ export function updateModalInfo() {
   const modalArtist = document.querySelector("#modal-artist");
   const modalPlaylistTitle = document.querySelector("#modal-playlist-title");
 
+  const isVideoDetailsPage =
+    window.currentVideoPageData && window.currentVideoPageData.combinedVideos;
+  const isSongDetailsPage =
+    window.currentSongPageData && window.currentSongPageData.combinedTracks;
+
   if (state.isVideoMode && state.youtubePlayer) {
     if (modalYouTubePlayer) modalYouTubePlayer.classList.remove("hidden");
     if (modalThumbnail) modalThumbnail.classList.add("hidden");
-    if (modalPlaylistTitle) modalPlaylistTitle.textContent = "Danh sách phát liên quan";
+    if (modalPlaylistTitle) {
+      if (isVideoDetailsPage) {
+        modalPlaylistTitle.textContent = "Video liên quan";
+      } else if (isSongDetailsPage) {
+        modalPlaylistTitle.textContent = "Danh sách bài hát";
+      } else {
+        modalPlaylistTitle.textContent = "Danh sách phát liên quan";
+      }
+    }
   } else {
     if (modalYouTubePlayer) modalYouTubePlayer.classList.add("hidden");
     if (modalThumbnail) {
       modalThumbnail.classList.remove("hidden");
       modalThumbnail.src = state.currentSong.thumbnails?.[0] || "";
     }
-    if (modalPlaylistTitle) modalPlaylistTitle.textContent = "Danh sách phát liên quan";
+    if (modalPlaylistTitle) {
+      if (isVideoDetailsPage) {
+        modalPlaylistTitle.textContent = "Video liên quan";
+      } else if (isSongDetailsPage) {
+        modalPlaylistTitle.textContent = "Danh sách bài hát";
+      } else {
+        modalPlaylistTitle.textContent = "Danh sách phát liên quan";
+      }
+    }
   }
 
   if (modalTitle) modalTitle.textContent = state.currentSong.title || "Unknown";
-  if (modalArtist) modalArtist.textContent = "Không rõ nghệ sĩ";
-  
+  if (modalArtist) {
+    modalArtist.textContent = state.currentSong.artist || "Không rõ nghệ sĩ";
+  }
+
   updateModalDuration();
 }
 
@@ -278,22 +305,60 @@ export function updateModalShuffleButton() {
 export function updateModalPlaylist() {
   const state = getPlayerState();
   const playlistContainer = document.querySelector("#modal-playlist");
-  if (!playlistContainer || !state.playlist.length) return;
+  const modalPlaylistTitle = document.querySelector("#modal-playlist-title");
 
-  playlistContainer.innerHTML = state.playlist
+  let playlistToShow = state.playlist;
+  let isVideoDetailsPage = false;
+  let isSongDetailsPage = false;
+
+  if (
+    window.currentVideoPageData &&
+    window.currentVideoPageData.combinedVideos
+  ) {
+    playlistToShow = window.currentVideoPageData.combinedVideos;
+    isVideoDetailsPage = true;
+    if (modalPlaylistTitle) {
+      modalPlaylistTitle.textContent = "Video liên quan";
+    }
+  } else if (
+    window.currentSongPageData &&
+    window.currentSongPageData.combinedTracks
+  ) {
+    playlistToShow = window.currentSongPageData.combinedTracks;
+    isSongDetailsPage = true;
+    if (modalPlaylistTitle) {
+      modalPlaylistTitle.textContent = "Danh sách bài hát";
+    }
+  } else {
+    if (modalPlaylistTitle) {
+      modalPlaylistTitle.textContent = "Danh sách phát liên quan";
+    }
+  }
+
+  if (!playlistContainer || !playlistToShow.length) return;
+
+  playlistContainer.innerHTML = playlistToShow
     .map(
       (track, index) => `
     <div class="modal-playlist-item flex items-center gap-4 p-3 rounded-lg hover:bg-white/5 cursor-pointer transition ${
-      index === state.currentIndex ? "bg-white/10" : ""
+      index === state.currentIndex ||
+      (state.currentSong && track.id === state.currentSong.id)
+        ? "bg-white/10"
+        : ""
     }"
          data-index="${index}">
       <img src="${track.thumbnails?.[0] || ""}" 
            class="w-12 h-12 rounded object-cover flex-shrink-0"/>
       <div class="flex-1 min-w-0">
         <h4 class="text-white font-medium truncate ${
-          index === state.currentIndex ? "text-cyan-400" : ""
+          index === state.currentIndex ||
+          (state.currentSong && track.id === state.currentSong.id)
+            ? "text-cyan-400"
+            : ""
         }">${track.title || "Unknown"}</h4>
-        <p class="text-gray-400 text-sm truncate">Không rõ nghệ sĩ</p>
+        <p class="text-gray-400 text-sm truncate">${
+          track.artist || "Không rõ nghệ sĩ"
+        }</p>
       </div>
       <span class="text-gray-400 text-sm">${formatTime(
         track.duration || 0
@@ -302,35 +367,47 @@ export function updateModalPlaylist() {
   `
     )
     .join("");
-    
+
   playlistContainer.querySelectorAll(".modal-playlist-item").forEach((item) => {
     item.addEventListener("click", () => {
       const index = parseInt(item.dataset.index);
       const state = getPlayerState();
-      
-      if (state.isVideoMode) {
-        const video = state.playlist[index];
-        if (video.videoId && state.youtubePlayer && state.youtubePlayer.loadVideoById) {
-          state.youtubePlayer.loadVideoById(video.videoId);
+      const track = playlistToShow[index];
+      if (!track) return;
+
+      if (state.isVideoMode || isVideoDetailsPage) {
+        if (
+          track.videoId &&
+          state.youtubePlayer &&
+          state.youtubePlayer.loadVideoById
+        ) {
+          state.youtubePlayer.loadVideoById(track.videoId);
           updatePlayerInfo();
           updateModalInfo();
           updateModalPlaylist();
-          document.dispatchEvent(new CustomEvent('modalVideoChanged', {
-            detail: { index, video }
-          }));
+          document.dispatchEvent(
+            new CustomEvent("modalVideoChanged", {
+              detail: { index, video: track },
+            })
+          );
         }
       } else {
-        playSong(state.playlist[index], state.playlist, index);
+        playSong(track, playlistToShow, index);
       }
     });
   });
-  document.addEventListener('videoDetailChanged', (event) => {
+
+  document.addEventListener("videoDetailChanged", (event) => {
     const { index } = event.detail;
     updateModalPlaylist();
   });
-  
+
+  const currentIndex = state.currentSong
+    ? playlistToShow.findIndex((t) => t.id === state.currentSong.id)
+    : state.currentIndex;
+
   const currentItem = playlistContainer.querySelector(
-    `[data-index="${state.currentIndex}"]`
+    `[data-index="${currentIndex}"]`
   );
   if (currentItem) {
     currentItem.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -527,28 +604,32 @@ export function createPlayer() {
 }
 
 function setupMainPlayerVolumeListener() {
-  document.addEventListener('mainPlayerVolumeChanged', (event) => {
+  document.addEventListener("mainPlayerVolumeChanged", (event) => {
     const { volume: newVolume, isMuted: newIsMuted } = event.detail;
     const state = getPlayerState();
-    
-    if (Math.abs(newVolume - state.volume) <= 1 && newIsMuted === state.isMuted) {
+
+    if (
+      Math.abs(newVolume - state.volume) <= 1 &&
+      newIsMuted === state.isMuted
+    ) {
       return;
     }
-    
+
     if (newIsMuted !== state.isMuted) {
       if (newIsMuted) {
         localStorage.setItem("player_volume_before_mute", String(state.volume));
         localStorage.setItem("player_volume", "0");
         localStorage.setItem("player_muted", "true");
       } else {
-        const volumeBeforeMute = parseInt(localStorage.getItem("player_volume_before_mute")) || 50;
+        const volumeBeforeMute =
+          parseInt(localStorage.getItem("player_volume_before_mute")) || 50;
         localStorage.setItem("player_volume", String(volumeBeforeMute));
         localStorage.setItem("player_muted", "false");
       }
     } else if (!newIsMuted && newVolume !== state.volume) {
       localStorage.setItem("player_volume", String(newVolume));
     }
-    
+
     updateVolumeUI();
     updateModalVolumeUI();
   });
