@@ -67,14 +67,21 @@ function onTimeUpdate() {
 
 async function trackPlayEvent(songId) {
   const accessToken = localStorage.getItem("access_token");
-  if (!accessToken) return;
+  if (!accessToken) {
+    console.log("No access token - skipping play event tracking");
+    return;
+  }
 
   try {
+    // Gọi API /events/play với axios instance (đã có token tự động)
     await axiosInstance.post("/events/play", {
       songId: songId,
       timestamp: new Date().toISOString(),
     });
 
+    console.log("Play event tracked successfully for song:", songId);
+
+    // Sau 500ms, refresh PersonalizedSection
     setTimeout(() => {
       if (typeof window.refreshPersonalizedSection === "function") {
         window.refreshPersonalizedSection();
@@ -82,6 +89,12 @@ async function trackPlayEvent(songId) {
     }, 500);
   } catch (error) {
     console.error("Error tracking play event:", error);
+    
+    // Nếu lỗi 401 (Unauthorized), axios interceptor sẽ tự động xử lý
+    // refresh token hoặc logout
+    if (error.response?.status === 401) {
+      console.warn("Unauthorized - token may have expired");
+    }
   }
 }
 

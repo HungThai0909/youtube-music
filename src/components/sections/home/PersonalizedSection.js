@@ -1,3 +1,5 @@
+import axiosInstance from "../../../axios";
+
 export const PersonalizedSection = {
   BASE_API_URL: import.meta.env.VITE_BASE_URL,
   playlists: [],
@@ -5,9 +7,13 @@ export const PersonalizedSection = {
   hideInternalLoading: false,
   currentIndex: 0,
   isDragging: false,
+  isInitialized: false, 
+  isFetching: false, 
+  
   setRouter(routerInstance) {
     this.router = routerInstance;
   },
+  
   render() {
     return `
       <section class="mb-12">
@@ -109,6 +115,11 @@ export const PersonalizedSection = {
   },
 
   async fetchPlaylists() {
+    if (this.isFetching) {
+      return;
+    }
+    this.isFetching = true; 
+
     try {
       const token = localStorage.getItem("access_token");
       if (!token) {
@@ -118,27 +129,32 @@ export const PersonalizedSection = {
         }
         return;
       }
-      const res = await fetch(this.getApiUrl(), {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+      const res = await axiosInstance.get("/home/personalized", {
+        params: { limit: 12 }
       });
       
-      if (!res.ok) {
-        throw new Error("Fetch failed");
-      }   
-      this.playlists = await res.json();
+      this.playlists = res.data;
+      
       const section = document.querySelector("#personalized-viewport");
       if (section) {
         section.closest("section").style.display = "block";
       }
+      
       await this.renderPlaylists();
+      
       requestAnimationFrame(() => {
         this.updateNavigation();
         this.updateScrollbar();
       });
     } catch (err) {
-      console.error("Error fetching personalized playlists:", err);
+      console.error("[PersonalizedSection] Error fetching playlists:", err);
+      
+      const section = document.querySelector("#personalized-viewport");
+      if (section && err.response?.status === 401) {
+        section.closest("section").style.display = "none";
+      }
+    } finally {
+      this.isFetching = false;  
     }
   },
 
@@ -315,6 +331,10 @@ export const PersonalizedSection = {
   },
 
   setupEventListeners() {
+    if (this.isInitialized) {
+      return;
+    }
+
     const prev = document.querySelector("#personalized-prev");
     const next = document.querySelector("#personalized-next");
     const track = document.querySelector("#personalized-scrollbar-track");
@@ -362,9 +382,14 @@ export const PersonalizedSection = {
   },
 
   init(options = {}) {
+    if (this.isInitialized) {
+      return this.fetchPlaylists();
+    }
+
     this.hideInternalLoading = options.hideLoading === true;
     this.setupEventListeners();
     window.refreshPersonalizedSection = () => this.refresh();
+    this.isInitialized = true; 
     return this.fetchPlaylists();
   },
 };

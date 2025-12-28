@@ -17,18 +17,21 @@ export const home = () => {
       </main>
     </div>
   `;
+  
   initSidebarToggle();
-  setTimeout(() => {
-    const token = localStorage.getItem("access_token");
-    if (token) {
-      PersonalizedSection.init();
-    } else {
-      console.log("Người dùng chưa đăng nhập");
-    }
-  }, 100);
+  
   (async () => {
     const token = localStorage.getItem("access_token");
-    if (!token) return;
+    if (!token) {
+      setTimeout(() => {
+        const section = document.querySelector("#personalized-viewport");
+        if (section) {
+          section.closest("section").style.display = "none";
+        }
+      }, 100);
+      return;
+    }
+    
     try {
       const res = await api.get("/auth/me");
       if (res?.data) {
@@ -36,22 +39,35 @@ export const home = () => {
         const userButton = document.querySelector("#userButton");
         if (userButton) {
           const initial =
-            (res.data.name || "").split(/\s+/)[0]?.charAt(0)?.toUpperCase() ||
-            "";
+            (res.data.name || "").split(/\s+/)[0]?.charAt(0)?.toUpperCase() || "";
           userButton.textContent = initial;
         }
+        
         const nameEls = document.querySelectorAll(".sidebar-user-name");
         nameEls.forEach((el) => {
           el.textContent = res.data.name || el.textContent;
         });
       }
+      setTimeout(() => {
+        PersonalizedSection.init();
+      }, 100);
+      
     } catch (e) {
       console.warn(
         "Could not refresh /auth/me on home load",
         e?.response?.status
       );
+      if (e?.response?.status !== 401) {
+        setTimeout(() => {
+          const token = localStorage.getItem("access_token");
+          if (token) {
+            PersonalizedSection.init();
+          }
+        }, 100);
+      }
     }
   })();
+  
   initSearchHandler();
 };
 
