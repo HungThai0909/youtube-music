@@ -65,6 +65,7 @@ function initLoginPage() {
   const passwordInput = document.querySelector("#loginPassword");
   const emailError = document.querySelector("#emailError");
   const passwordError = document.querySelector("#passwordError");
+  
   const validateEmail = (email) => {
     const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return re.test(email);
@@ -105,6 +106,59 @@ function initLoginPage() {
       setTimeout(() => notification.remove(), 300);
     }, 3000);
   };
+  const updateHeaderAfterLogin = (userData) => {
+    const getInitial = (name) => {
+      if (!name) return "";
+      const parts = name.trim().split(/\s+/);
+      return parts[0].charAt(0).toUpperCase();
+    };
+    const headerRight = document.querySelector("header .flex.items-center.gap-2");
+    if (!headerRight) return;
+    const userButtonHTML = `
+      <div class="relative inline-block">
+        <button id="userButton" class="w-8 h-8 bg-gray-700 hover:bg-gray-800 rounded-full flex items-center justify-center text-sm font-medium cursor-pointer">
+          ${getInitial(userData.name)}
+        </button>
+        <div id="userMenu" class="hidden absolute right-0 mt-2 w-48 bg-gray-900 rounded-lg shadow-lg overflow-hidden text-sm z-50">
+          <a href="/profile" data-navigo class="block px-4 py-3 text-white hover:bg-gray-800">Thông tin người dùng</a>
+          <a href="/change-password" data-navigo class="block px-4 py-3 text-white hover:bg-gray-800">Đổi mật khẩu</a>
+          <button id="logoutBtn" class="w-full text-left px-4 py-3 text-red-500 hover:bg-gray-800 cursor-pointer">Đăng xuất</button>
+        </div>
+      </div>
+    `;
+    const loginButton = headerRight.querySelector('a[href="/login"]');
+    if (loginButton) {
+      loginButton.remove();
+    }
+    headerRight.insertAdjacentHTML("beforeend", userButtonHTML);
+    const userButton = document.querySelector("#userButton");
+    const userMenu = document.querySelector("#userMenu");
+    const logoutBtn = document.querySelector("#logoutBtn");
+
+    if (userButton && userMenu) {
+      userButton.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        userMenu.classList.toggle("hidden");
+      });
+
+      document.addEventListener("click", (ev) => {
+        if (userMenu && !userMenu.classList.contains("hidden")) {
+          if (!userMenu.contains(ev.target) && ev.target !== userButton) {
+            userMenu.classList.add("hidden");
+          }
+        }
+      });
+    }
+
+    if (logoutBtn) {
+      logoutBtn.addEventListener("click", () => {
+        localStorage.removeItem("access_token");
+        localStorage.removeItem("refresh_token");
+        localStorage.removeItem("currentUser");
+        window.location.href = "/login";
+      });
+    }
+  };
 
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -130,6 +184,7 @@ function initLoginPage() {
     }
 
     if (!isValid) return;
+    
     try {
       const response = await api.post("/auth/login", {
         email: emailInput.value,
@@ -139,11 +194,15 @@ function initLoginPage() {
       const data = response.data;
       localStorage.setItem("access_token", data.access_token);
       localStorage.setItem("refresh_token", data.refresh_token);
+      
+      let userData = null;
       try {
         const me = await api.get("/auth/me");
         if (me?.data) {
+          userData = me.data;
           localStorage.setItem("currentUser", JSON.stringify(me.data));
         } else if (data.user) {
+          userData = data.user;
           localStorage.setItem("currentUser", JSON.stringify(data.user));
         }
       } catch (e) {
@@ -153,11 +212,16 @@ function initLoginPage() {
           e?.response?.data
         );
         if (data.user) {
+          userData = data.user;
           localStorage.setItem("currentUser", JSON.stringify(data.user));
         }
       }
 
       showNotification("Đăng nhập thành công!", "success");
+      if (userData) {
+        updateHeaderAfterLogin(userData);
+      }
+      
       setTimeout(() => {
         window.location.href = "/";
       }, 1200);

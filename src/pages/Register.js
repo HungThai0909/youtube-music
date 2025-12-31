@@ -118,6 +118,59 @@ function initRegisterPage() {
     document.body.appendChild(div);
     setTimeout(() => div.remove(), 3000);
   };
+  const updateHeaderAfterRegister = (userData) => {
+    const getInitial = (name) => {
+      if (!name) return "";
+      const parts = name.trim().split(/\s+/);
+      return parts[0].charAt(0).toUpperCase();
+    };
+    const headerRight = document.querySelector("header .flex.items-center.gap-2");
+    if (!headerRight) return;
+    const userButtonHTML = `
+      <div class="relative inline-block">
+        <button id="userButton" class="w-8 h-8 bg-gray-700 hover:bg-gray-800 rounded-full flex items-center justify-center text-sm font-medium cursor-pointer">
+          ${getInitial(userData.name)}
+        </button>
+        <div id="userMenu" class="hidden absolute right-0 mt-2 w-48 bg-gray-900 rounded-lg shadow-lg overflow-hidden text-sm z-50">
+          <a href="/profile" data-navigo class="block px-4 py-3 text-white hover:bg-gray-800">Thông tin người dùng</a>
+          <a href="/change-password" data-navigo class="block px-4 py-3 text-white hover:bg-gray-800">Đổi mật khẩu</a>
+          <button id="logoutBtn" class="w-full text-left px-4 py-3 text-red-500 hover:bg-gray-800 cursor-pointer">Đăng xuất</button>
+        </div>
+      </div>
+    `;
+    const loginButton = headerRight.querySelector('a[href="/login"]');
+    if (loginButton) {
+      loginButton.remove();
+    }
+    headerRight.insertAdjacentHTML("beforeend", userButtonHTML);
+    const userButton = document.querySelector("#userButton");
+    const userMenu = document.querySelector("#userMenu");
+    const logoutBtn = document.querySelector("#logoutBtn");
+
+    if (userButton && userMenu) {
+      userButton.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        userMenu.classList.toggle("hidden");
+      });
+
+      document.addEventListener("click", (ev) => {
+        if (userMenu && !userMenu.classList.contains("hidden")) {
+          if (!userMenu.contains(ev.target) && ev.target !== userButton) {
+            userMenu.classList.add("hidden");
+          }
+        }
+      });
+    }
+
+    if (logoutBtn) {
+      logoutBtn.addEventListener("click", () => {
+        localStorage.removeItem("access_token");
+        localStorage.removeItem("refresh_token");
+        localStorage.removeItem("currentUser");
+        window.location.href = "/login";
+      });
+    }
+  };
 
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -140,7 +193,44 @@ function initRegisterPage() {
       });
 
       localStorage.setItem("access_token", res.data.access_token);
+      if (res.data.refresh_token) {
+        localStorage.setItem("refresh_token", res.data.refresh_token);
+      }
+      let userData = null;
+      try {
+        const me = await api.get("/auth/me");
+        if (me?.data) {
+          userData = me.data;
+          localStorage.setItem("currentUser", JSON.stringify(me.data));
+        } else if (res.data.user) {
+          userData = res.data.user;
+          localStorage.setItem("currentUser", JSON.stringify(res.data.user));
+        } else {
+          userData = {
+            name: name.value,
+            email: email.value
+          };
+          localStorage.setItem("currentUser", JSON.stringify(userData));
+        }
+      } catch (e) {
+        console.warn("Could not fetch /auth/me after register", e);
+        if (res.data.user) {
+          userData = res.data.user;
+          localStorage.setItem("currentUser", JSON.stringify(res.data.user));
+        } else {
+          userData = {
+            name: name.value,
+            email: email.value
+          };
+          localStorage.setItem("currentUser", JSON.stringify(userData));
+        }
+      }
+
       showNotification("Đăng ký thành công");
+      if (userData) {
+        updateHeaderAfterRegister(userData);
+      }
+      
       setTimeout(() => (window.location.href = "/"), 1200);
     } catch (err) {
       const status = err?.response?.status;

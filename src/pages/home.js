@@ -664,8 +664,15 @@ function initSidebarToggle() {
               password: newPassword.value,
               confirmPassword: confirmPassword.value,
             });
-            createNotification("Đổi mật khẩu thành công", "success");
+            localStorage.removeItem("access_token");
+            localStorage.removeItem("refresh_token");
+            localStorage.removeItem("currentUser");
+            
+            createNotification("Đổi mật khẩu thành công! Vui lòng đăng nhập lại", "success");
             close();
+            setTimeout(() => {
+              window.location.href = "/login";
+            }, 1500);
           } catch (err) {
             console.error("Change password error", err);
             const status = err?.response?.status;
