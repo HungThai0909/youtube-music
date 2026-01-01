@@ -6,6 +6,9 @@ import {
   playSong,
   syncWithYouTubePlayer,
   stopAudioPlayback,
+  stopYouTubeSync,
+  setVolume,
+  toggleMute,
   getPlayerState,
   playNext,
 } from "../utils/Playbar";
@@ -18,6 +21,7 @@ let currentVideos = [];
 let mainPlayerVolumeCheckInterval = null;
 let modalPlayerVolumeCheckInterval = null;
 let modalShouldAutoplay = false;
+let pendingPlaybackTransfer = false;
 
 export const VideoDetail = (match) => {
   const app = document.querySelector("#app");
@@ -243,37 +247,121 @@ function onPlayerReady(event, containerId) {
         console.warn("[Modal Open] Error pausing main player:", e);
       }
 
-      if (modalPlayer && typeof syncWithYouTubePlayer === "function") {
-        syncModalPlayerWithMainPlayer();
-        syncWithYouTubePlayer(modalPlayer, currentVideoData, currentVideos);
+      if (!modalPlayer) {
+        modalShouldAutoplay = false;
+        return;
+      }
 
-        try {
-          const shouldPlay = !!modalShouldAutoplay;
-          if (shouldPlay) {
-            if (modalPlayer.playVideo) {
-              modalPlayer.playVideo();
+      try {
+        const last = window.playbarLastState || {};
+        if (last && (last.currentTime || last.currentTime === 0)) {
+          console.debug(
+            "[Modal Transfer] applying playbarLastState to modal",
+            last
+          );
+          try {
+            if (typeof modalPlayer.seekTo === "function")
+              modalPlayer.seekTo(last.currentTime || 0, true);
+          } catch (err) {}
+
+          try {
+            if (
+              Number.isFinite(last.volume) &&
+              typeof setVolume === "function"
+            ) {
+              setVolume(Math.round(last.volume));
+            }
+         
+            try {
+              const state = getPlayerState();
+              if (
+                last.isMuted &&
+                !state.isMuted &&
+                typeof toggleMute === "function"
+              )
+                toggleMute();
+              if (
+                !last.isMuted &&
+                state.isMuted &&
+                typeof toggleMute === "function"
+              )
+                toggleMute();
+            } catch (err) {}
+          } catch (err) {}
+
+        
+          if (last.isPlaying) {
+            try {
+              if (typeof stopYouTubeSync === "function") stopYouTubeSync();
+            } catch (err) {}
+          }
+
+          try {
+            if (typeof syncWithYouTubePlayer === "function") {
+              syncWithYouTubePlayer(
+                modalPlayer,
+                currentVideoData,
+                currentVideos
+              );
+            }
+          } catch (err) {
+            console.warn("[Modal Open] Error syncing modal with playbar:", err);
+          }
+
+          try {
+            const shouldPlay = !!(last.isPlaying || modalShouldAutoplay);
+            if (shouldPlay) {
+              if (modalPlayer.playVideo) {
+                modalPlayer.playVideo();
+              }
+            } else {
+              if (modalPlayer.pauseVideo) {
+                try {
+                  modalPlayer.pauseVideo();
+                } catch (e) {}
+              }
+            }
+          } catch (e) {
+            console.warn("[Modal Open] Error controlling modal playback:", e);
+          }
+        } else {
+       
+          if (modalPlayer && typeof syncWithYouTubePlayer === "function") {
+            syncModalPlayerWithMainPlayer();
+            syncWithYouTubePlayer(modalPlayer, currentVideoData, currentVideos);
+
+            try {
+              const shouldPlay = !!modalShouldAutoplay;
+              if (shouldPlay) {
+                if (modalPlayer.playVideo) {
+                  modalPlayer.playVideo();
+                }
+              } else {
+                if (modalPlayer.pauseVideo) {
+                  try {
+                    modalPlayer.pauseVideo();
+                  } catch (e) {}
+                }
+              }
+            } catch (e) {
+              console.warn("[Modal Open] Error controlling modal playback:", e);
             }
           } else {
-            if (modalPlayer.pauseVideo) {
+            syncModalPlayerWithMainPlayer();
+            if (!modalShouldAutoplay) {
               try {
-                modalPlayer.pauseVideo();
+                if (modalPlayer && modalPlayer.pauseVideo)
+                  modalPlayer.pauseVideo();
+              } catch (e) {}
+              try {
+                updateModalPlayButton();
+                updatePlayButton();
               } catch (e) {}
             }
           }
-        } catch (e) {
-          console.warn("[Modal Open] Error controlling modal playback:", e);
         }
-      } else {
-        syncModalPlayerWithMainPlayer();
-        if (!modalShouldAutoplay) {
-          try {
-            if (modalPlayer && modalPlayer.pauseVideo) modalPlayer.pauseVideo();
-          } catch (e) {}
-          try {
-            updateModalPlayButton();
-            updatePlayButton();
-          } catch (e) {}
-        }
+      } catch (e) {
+        console.warn("[Modal Open] Error during transfer logic:", e);
       }
 
       modalShouldAutoplay = false;
@@ -380,9 +468,32 @@ async function loadVideoDetail(id) {
 
     await renderHero(videoData, combinedVideos);
     if (videoData.videoId) {
-      setTimeout(() => {
-        createYouTubePlayer(videoData.videoId);
-      }, 100);
+    
+      const state = getPlayerState();
+      if (
+        state.youtubePlayer &&
+        typeof state.youtubePlayer.getIframe === "function"
+      ) {
+        try {
+          const iframe = state.youtubePlayer.getIframe();
+          const container = document.querySelector("#youtube-player");
+          if (iframe && container && iframe.parentNode !== container) {
+            container.appendChild(iframe);
+          }
+          player = state.youtubePlayer;
+          startMainPlayerVolumeMonitoring();
+          if (window.currentVideoPageData)
+            window.currentVideoPageData.player = player;
+          if (typeof syncWithYouTubePlayer === "function") {
+            syncWithYouTubePlayer(player, currentVideoData, currentVideos);
+          }
+        } catch (e) {
+          console.warn("[VideoDetails] Error reusing global YT player:", e);
+          setTimeout(() => createYouTubePlayer(videoData.videoId), 100);
+        }
+      } else {
+        setTimeout(() => createYouTubePlayer(videoData.videoId), 100);
+      }
     }
 
     await waitForThumbnailsToLoad();
@@ -501,6 +612,133 @@ async function renderHero(data, combinedVideos) {
 
   setupVideoClickHandlers(data, combinedVideos);
   setupModalEventListeners();
+
+  (function setupPersistHandlers() {
+    const appEl = document.querySelector("#app");
+    const heroEl = document.querySelector("#video-hero");
+    if (!appEl || !heroEl) return;
+
+    const persistPlayer = () => {
+      try {
+        if (!player) return;
+        console.debug("[Persist Player] handoff start", {
+          id: currentVideoData?.id,
+        });
+
+        let wasPlaying = false;
+        let currentTime = 0;
+        try {
+          if (typeof player.getPlayerState === "function") {
+            wasPlaying = player.getPlayerState() === 1;
+          }
+        } catch (e) {}
+        try {
+          if (typeof player.getCurrentTime === "function") {
+            currentTime = Number(player.getCurrentTime()) || 0;
+          }
+        } catch (e) {}
+
+        let globalEl = document.querySelector("#global-youtube-container");
+        if (!globalEl) {
+          globalEl = document.createElement("div");
+          globalEl.id = "global-youtube-container";
+          globalEl.style.display = "none";
+          document.body.appendChild(globalEl);
+        }
+
+        try {
+          if (typeof player.getIframe === "function") {
+            const iframe = player.getIframe();
+            if (iframe && iframe.parentNode !== globalEl) {
+              globalEl.appendChild(iframe);
+            }
+          }
+        } catch (e) {
+          console.warn("[Persist Player] Error moving iframe:", e);
+        }
+
+        if (typeof syncWithYouTubePlayer === "function") {
+          syncWithYouTubePlayer(player, currentVideoData, currentVideos);
+        }
+
+        setTimeout(() => {
+          try {
+            document.dispatchEvent(
+              new CustomEvent("playerHandOff", {
+                detail: {
+                  wasPlaying,
+                  currentTime,
+                  playerInstance: player,
+                  videoData: currentVideoData,
+                  videoList: currentVideos,
+                },
+              })
+            );
+          } catch (e) {
+            console.warn(
+              "[Persist Player] Error dispatching handoff event:",
+              e
+            );
+          }
+        }, 30);
+
+        try {
+          stopMainPlayerVolumeMonitoring();
+        } catch (e) {}
+        if (
+          window.currentVideoPageData &&
+          window.currentVideoPageData.player === player
+        ) {
+          delete window.currentVideoPageData.player;
+        }
+
+        setTimeout(() => {
+          try {
+            player = null;
+          } catch (e) {}
+        }, 200);
+
+        console.debug("[Persist Player] handoff queued", {
+          wasPlaying,
+          currentTime,
+        });
+      } catch (e) {
+        console.warn("[Persist Player] Error:", e);
+      }
+    };
+
+    const onDocClick = (evt) => {
+      try {
+        const a = evt.target.closest && evt.target.closest("a[href]");
+        if (!a) return;
+        const href = a.getAttribute("href");
+        if (!href) return;
+       
+        if (href.startsWith("http") && !href.startsWith(window.location.origin))
+          return;
+        const url = new URL(href, window.location.href);
+        if (url.pathname !== window.location.pathname) {
+          persistPlayer();
+        }
+      } catch (e) {}
+    };
+
+    const onPop = () => persistPlayer();
+
+    document.addEventListener("click", onDocClick, true);
+    window.addEventListener("popstate", onPop);
+
+    const observer = new MutationObserver(() => {
+      if (!document.body.contains(heroEl)) {
+        persistPlayer();
+        observer.disconnect();
+        document.removeEventListener("click", onDocClick, true);
+        window.removeEventListener("popstate", onPop);
+      }
+    });
+
+    observer.observe(appEl, { childList: true, subtree: true });
+  })();
 }
 
 function setupModalEventListeners() {
@@ -508,10 +746,44 @@ function setupModalEventListeners() {
 
   document.addEventListener("playerModalOpened", (e) => {
     const isVideoMode = e.detail?.isVideoMode;
-    modalShouldAutoplay = !!e.detail?.isPlaying;
+    modalShouldAutoplay =
+      !!e.detail?.isPlaying && !window.playbarLastState?.isPlaying;
+    if (window.playbarLastState?.isPlaying) {
+     
+      pendingPlaybackTransfer = true;
+    }
+
     if (isVideoMode && currentVideoData && currentVideoData.videoId) {
       setTimeout(() => {
         createYouTubePlayer(currentVideoData.videoId, "modal-youtube-player");
+        setTimeout(() => {
+          try {
+            const last = window.playbarLastState || {};
+            if (window.YT && window.YT.get) {
+              const mp = window.YT.get("modal-youtube-player");
+              if (mp && typeof mp.seekTo === "function") {
+                mp.seekTo(last.currentTime || 0, true);
+                try {
+                  if (typeof mp.setVolume === "function")
+                    mp.setVolume(
+                      Number.isFinite(last.volume)
+                        ? Math.round(last.volume)
+                        : 100
+                    );
+                  if (last.isMuted) {
+                    if (typeof mp.mute === "function") mp.mute();
+                  } else {
+                    if (typeof mp.unMute === "function") mp.unMute();
+                  }
+                  if (last.isPlaying || !!e.detail?.isPlaying) {
+                    if (typeof mp.playVideo === "function") mp.playVideo();
+                  } else if (typeof mp.pauseVideo === "function")
+                    mp.pauseVideo();
+                } catch (err) {}
+              }
+            }
+          } catch (err) {}
+        }, 250);
       }, 100);
     }
   });

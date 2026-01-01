@@ -251,6 +251,52 @@ export function updateModalDuration() {
   }
 }
 
+document.addEventListener("playbarSynced", (e) => {
+  try {
+    const d = e.detail || {};
+    const {
+      currentTime = 0,
+      isPlaying = false,
+      volume = 100,
+      isMuted = false,
+      isUsingModal = false,
+    } = d;
+    
+    if (window.YT && window.YT.get) {
+      try {
+        const p = window.YT.get("modal-youtube-player");
+        if (p) {
+          try {
+            if (typeof p.seekTo === "function") p.seekTo(currentTime, true);
+          
+            try {
+              if (typeof p.setVolume === "function")
+                p.setVolume(Number.isFinite(volume) ? Math.round(volume) : 100);
+              if (isMuted) {
+                if (typeof p.mute === "function") p.mute();
+              } else {
+                if (typeof p.unMute === "function") p.unMute();
+              }
+  
+              if (!isUsingModal) {
+                if (typeof p.pauseVideo === "function") p.pauseVideo();
+              }
+            } catch (err) {}
+          } catch (err) {
+            
+          }
+        }
+      } catch (err) {}
+    }
+
+    updateModalProgressBar();
+    updateModalPlayButton();
+    updateModalVolumeUI();
+  } catch (e) {
+    console.warn("[Playbar UI] playbarSynced handler error:", e);
+  }
+});
+
 export function updateModalVolumeUI() {
   const state = getPlayerState();
   const icon = document.querySelector("#modal-volume-btn i");

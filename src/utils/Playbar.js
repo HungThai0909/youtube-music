@@ -292,8 +292,7 @@ function handleVideoChange(video, index, videoList) {
       if (targetPlayer && typeof targetPlayer.isMuted === "function") {
         priorMuted = !!targetPlayer.isMuted();
       }
-    } catch (e) {
-    }
+    } catch (e) {}
     targetPlayer.loadVideoById(video.videoId);
     try {
       if (typeof targetPlayer.setVolume === "function") {
@@ -749,6 +748,35 @@ export function syncWithYouTubePlayer(
   }
   startVolumeMonitoring();
 
+  try {
+    let isUsingModal = false;
+    try {
+      if (youtubePlayer && typeof youtubePlayer.getIframe === "function") {
+        const iframe = youtubePlayer.getIframe();
+        if (
+          iframe &&
+          iframe.parentNode &&
+          iframe.parentNode.id === "modal-youtube-player"
+        ) {
+          isUsingModal = true;
+        }
+      }
+    } catch (err) {}
+
+    const payload = {
+      currentTime,
+      isPlaying,
+      videoData: currentSong,
+      volume,
+      isMuted,
+      isUsingModal,
+    };
+    window.playbarLastState = payload;
+    document.dispatchEvent(
+      new CustomEvent("playbarSynced", { detail: payload })
+    );
+  } catch (e) {}
+
   if (youtubeUpdateInterval) {
     clearInterval(youtubeUpdateInterval);
   }
@@ -780,6 +808,190 @@ export function syncWithYouTubePlayer(
     }
   }, 100);
 }
+
+document.addEventListener("playerHandOff", (e) => {
+  try {
+    const d = e.detail || {};
+    const {
+      playerInstance,
+      currentTime: handedTime = 0,
+      wasPlaying = false,
+      videoData,
+      videoList,
+    } = d;
+
+    console.debug("[Playbar] playerHandOff received", {
+      id: videoData?.id,
+      handedTime,
+      wasPlaying,
+      hasPlayer: !!playerInstance,
+    });
+
+    if (playerInstance) {
+      (function createAndAdoptPlayer() {
+        try {
+          const vid =
+            videoData?.videoId ||
+            (playerInstance &&
+              playerInstance.getVideoData &&
+              playerInstance.getVideoData().video_id) ||
+            null;
+
+          if (!vid) {
+            try {
+              syncWithYouTubePlayer(playerInstance, videoData, videoList, true);
+            } catch (err) {
+              console.warn(
+                "[Playbar] Error syncing provided player (no video id):",
+                err
+              );
+            }
+            return;
+          }
+
+          let globalEl = document.querySelector("#global-youtube-container");
+          if (!globalEl) {
+            globalEl = document.createElement("div");
+            globalEl.id = "global-youtube-container";
+            globalEl.style.display = "none";
+            document.body.appendChild(globalEl);
+          }
+
+          try {
+            while (globalEl.firstChild)
+              globalEl.removeChild(globalEl.firstChild);
+          } catch (e) {}
+
+          const playerDivId = "playbar-youtube-player";
+          const wrapper = document.createElement("div");
+          wrapper.id = playerDivId;
+          globalEl.appendChild(wrapper);
+
+          const instantiate = () => {
+            try {
+              if (!window.YT || !window.YT.Player) {
+                setTimeout(instantiate, 100);
+                return;
+              }
+
+              console.debug("[Playbar] Creating internal player for handoff", {
+                vid,
+                handedTime,
+                wasPlaying,
+              });
+
+              const p = new window.YT.Player(playerDivId, {
+                videoId: vid,
+                playerVars: {
+                  start: Math.floor(handedTime || 0),
+                  origin: window.location.origin,
+                },
+                events: {
+                  onReady: (ev) => {
+                    try {
+                      if (typeof ev.target.seekTo === "function")
+                        ev.target.seekTo(handedTime || 0, true);
+                    } catch (e) {}
+                    try {
+                      syncWithYouTubePlayer(
+                        ev.target,
+                        videoData,
+                        videoList,
+                        true
+                      );
+                    } catch (err) {
+                      console.warn(
+                        "[Playbar] syncWithYouTubePlayer error:",
+                        err
+                      );
+                    }
+
+                    let attemptsInner = 0;
+                    const tryPlayInner = () => {
+                      attemptsInner++;
+                      try {
+                        if (
+                          wasPlaying &&
+                          typeof ev.target.playVideo === "function"
+                        ) {
+                          try {
+                            ev.target.playVideo();
+                            isPlaying = true;
+                            updatePlayButton();
+                            updateModalPlayButton();
+                            return;
+                          } catch (err) {
+                          }
+                        } else {
+                          isPlaying = !!wasPlaying;
+                          updatePlayButton();
+                          updateModalPlayButton();
+                        }
+                      } catch (err) {}
+                      if (attemptsInner < 8)
+                        setTimeout(tryPlayInner, 150 * attemptsInner);
+                    };
+                    setTimeout(tryPlayInner, 50);
+                  },
+                },
+              });
+            } catch (err) {
+              console.warn("[Playbar] Error creating internal YT player:", err);
+            }
+          };
+
+          instantiate();
+        } catch (err) {
+          console.warn("[Playbar] createAndAdoptPlayer error:", err);
+        }
+      })();
+    } else {
+      try {
+        const globalEl = document.querySelector("#global-youtube-container");
+        if (globalEl) {
+          const iframe = globalEl.querySelector("iframe");
+          if (iframe && window.YT && window.YT.get) {
+            const pid = iframe.id || "youtube-player";
+            const p = window.YT.get(pid);
+            if (p) {
+              console.debug("[Playbar] Found YT player via iframe lookup");
+              syncWithYouTubePlayer(p, videoData, videoList, true);
+
+              let attempts2 = 0;
+              const trySeekPlay2 = () => {
+                attempts2++;
+                try {
+                  if (typeof p.seekTo === "function")
+                    p.seekTo(handedTime, true);
+                  if (wasPlaying && typeof p.playVideo === "function") {
+                    p.playVideo();
+                    isPlaying = true;
+                    updatePlayButton();
+                    updateModalPlayButton();
+                    return;
+                  } else {
+                    isPlaying = !!wasPlaying;
+                    updatePlayButton();
+                    updateModalPlayButton();
+                  }
+                } catch (err) {}
+                if (attempts2 < 8) setTimeout(trySeekPlay2, 150 * attempts2);
+              };
+              setTimeout(trySeekPlay2, 50);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn(
+          "[Playbar] Error handling playerHandOff without instance:",
+          err
+        );
+      }
+    }
+  } catch (e) {
+    console.warn("[Playbar] playerHandOff handler error:", e);
+  }
+});
 
 export function stopYouTubeSync() {
   if (youtubeUpdateInterval) {
