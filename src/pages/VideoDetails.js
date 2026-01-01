@@ -484,6 +484,7 @@ async function renderHero(data, combinedVideos) {
 
 function setupModalEventListeners() {
   document.addEventListener("modalVideoChanged", handleModalVideoChange);
+  
   document.addEventListener("playerModalOpened", (e) => {
     const isVideoMode = e.detail?.isVideoMode;
     if (isVideoMode && currentVideoData && currentVideoData.videoId) {
@@ -518,55 +519,24 @@ function setupModalEventListeners() {
       }
     }
   });
-
   document.addEventListener("playerSongChanged", (event) => {
-    const { song, skipSync } = event.detail || {};
+    const { song, skipSync, index } = event.detail || {};
     if (!song) return;
-
     currentVideoData = song;
     updateHero(song);
-
-    const foundIndex = currentVideos.findIndex((v) => v.id === song.id);
-    if (foundIndex !== -1) updateVideoSelection(foundIndex);
-
-    if (skipSync) {
-      return;
+    let foundIndex = currentVideos.findIndex((v) => v.id === song.id);
+    if (typeof index === 'number' && index >= 0) {
+      foundIndex = index;
     }
-
-    try {
-      stopAudioPlayback();
-    } catch (e) {}
-    try {
-      if (modalPlayer && modalPlayer.pauseVideo) modalPlayer.pauseVideo();
-    } catch (e) {}
-
-    const modalEl = document.querySelector("#player-modal");
-    const isModalOpen = modalEl && !modalEl.classList.contains("hidden");
-    const targetPlayer = isModalOpen ? modalPlayer : player;
-
-    if (targetPlayer && song.videoId && targetPlayer.loadVideoById) {
+    
+    if (foundIndex !== -1) {
+      updateVideoSelection(foundIndex);
+    }
+    if (!skipSync) {
       try {
-        targetPlayer.loadVideoById(song.videoId);
-        setTimeout(() => {
-          try {
-            if (targetPlayer.playVideo) targetPlayer.playVideo();
-          } catch (e) {}
-        }, 100);
-      } catch (e) {
-        console.warn("[playerSongChanged] Error loading player:", e);
-      }
+        stopAudioPlayback();
+      } catch (e) {}
     }
-
-    try {
-      if (typeof syncWithYouTubePlayer === "function") {
-        syncWithYouTubePlayer(
-          targetPlayer || player || modalPlayer,
-          song,
-          currentVideos,
-          true
-        );
-      }
-    } catch (e) {}
   });
 
   document.addEventListener("modalPlayerVolumeChanged", (event) => {
@@ -577,45 +547,6 @@ function setupModalEventListeners() {
         detail: { volume: newVolume, isMuted: newIsMuted },
       })
     );
-  });
-
-  document.addEventListener("videoDetailChanged", (event) => {
-    const { index, video } = event.detail || {};
-    if (!video) return;
-
-    currentVideoData = video;
-    updateHero(video);
-
-    const foundIndex = currentVideos.findIndex((v) => v.id === video.id);
-    if (foundIndex !== -1) {
-      updateVideoSelection(foundIndex);
-    } else if (typeof index === "number") {
-      updateVideoSelection(index);
-    }
-
-    if (video.videoId && player && player.loadVideoById) {
-      try {
-        player.loadVideoById(video.videoId);
-        setTimeout(() => {
-          try {
-            if (player && player.seekTo) {
-              player.seekTo(0, true);
-            }
-            if (player && player.playVideo) {
-              player.playVideo();
-            }
-          } catch (e) {
-            console.warn("[VideoDetailChanged] Error playing video:", e);
-          }
-        }, 100);
-      } catch (e) {
-        console.warn("[VideoDetailChanged] Error loading video:", e);
-      }
-    }
-
-    if (player && typeof syncWithYouTubePlayer === "function") {
-      syncWithYouTubePlayer(player, video, currentVideos, true);
-    }
   });
 }
 
@@ -678,9 +609,10 @@ function setupVideoClickHandlers(currentVideo, videos) {
       if (!video) return;
 
       updateVideoSelection(index);
-
       currentVideoData = video;
+      currentVideos = videos;
       updateHero(video);
+      
       if (videoId) {
         stopAudioPlayback();
         loadVideoInPlayer(videoId);
@@ -695,15 +627,10 @@ function setupVideoClickHandlers(currentVideo, videos) {
           } catch (e) {}
         }, 100);
       }
+      
       if (player && typeof syncWithYouTubePlayer === "function") {
-        syncWithYouTubePlayer(player, video, videos);
+        syncWithYouTubePlayer(player, video, videos, false);
       }
-
-      document.dispatchEvent(
-        new CustomEvent("videoDetailChanged", {
-          detail: { index, video },
-        })
-      );
     });
   });
 }

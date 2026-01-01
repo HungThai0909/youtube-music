@@ -118,8 +118,7 @@ export async function playSong(songData, playlistArray = [], index = 0) {
       detail: { song: songData, index },
     })
   );
-
-  const audioUrl = songData.audioUrl || (await getAudioUrl(songData.id));
+  const audioUrl = songData.audioUrl;
 
   if (requestId !== lastPlayRequestId) return;
 
@@ -196,16 +195,6 @@ export async function playSong(songData, playlistArray = [], index = 0) {
   updateModalInfo();
 }
 
-async function getAudioUrl(songId) {
-  try {
-    const response = await axiosInstance.get(`/songs/stream/${songId}`);
-    return response.data.audioUrl || response.data.url;
-  } catch (error) {
-    console.error("Error getting audio URL:", error);
-    return null;
-  }
-}
-
 function awaitEvent(target, eventName, timeout = 5000) {
   return new Promise((resolve, reject) => {
     let timer = null;
@@ -250,6 +239,70 @@ export function togglePlay() {
   }
 }
 
+function handleVideoChange(video, index, videoList) {
+  if (!isVideoMode) {
+    playSong(video, videoList, index);
+    return;
+  }
+  
+  let targetPlayer = youtubePlayer;
+  if (window.currentVideoPageData && window.currentVideoPageData.combinedVideos) {
+    if (window.currentVideoPageData.player) {
+      targetPlayer = window.currentVideoPageData.player;
+      youtubePlayer = targetPlayer;
+    } else {
+      const videoDetailsContainer = document.querySelector("#youtube-player");
+      if (videoDetailsContainer) {
+        try {
+          const iframe = videoDetailsContainer.querySelector("iframe");
+          if (iframe && window.YT && window.YT.get) {
+            const playerId = iframe.id || "youtube-player";
+            targetPlayer = window.YT.get(playerId);
+            if (targetPlayer) {
+              youtubePlayer = targetPlayer;
+              window.currentVideoPageData.player = targetPlayer;
+            }
+          }
+        } catch (e) {
+          console.warn("[handleVideoChange] Error getting VideoDetails player:", e);
+        }
+      }
+    }
+  }
+
+  if (video.videoId && targetPlayer && targetPlayer.loadVideoById) {
+    currentSong = video;
+    currentIndex = index;
+    playlist = videoList;
+    currentTime = 0;
+    hasTrackedPlay = false;
+    targetPlayer.loadVideoById(video.videoId);
+    updatePlayerInfo();
+    updateModalInfo();
+    updateModalPlaylist();
+    setTimeout(() => {
+      try {
+        if (targetPlayer.seekTo) {
+          targetPlayer.seekTo(0, true);
+        }
+        if (targetPlayer.playVideo) {
+          targetPlayer.playVideo();
+        }
+        isPlaying = true;
+        updatePlayButton();
+        updateModalPlayButton();
+      } catch (e) {
+        console.warn("[handleVideoChange] Error playing video:", e);
+      }
+    }, 300);
+    document.dispatchEvent(
+      new CustomEvent("playerSongChanged", {
+        detail: { song: video, index: index, skipSync: true },
+      })
+    );
+  }
+}
+
 export function playNext() {
   let playlistToUse = playlist;
   if (window.currentVideoPageData && window.currentVideoPageData.combinedVideos) {
@@ -261,150 +314,14 @@ export function playNext() {
   if (isShuffle) {
     const randomIndex = Math.floor(Math.random() * playlistToUse.length);
     if (isVideoMode) {
-      const video = playlistToUse[randomIndex];
-      let targetPlayer = youtubePlayer;
-
-      if (
-        window.currentVideoPageData &&
-        window.currentVideoPageData.combinedVideos
-      ) {
-        if (window.currentVideoPageData.player) {
-          targetPlayer = window.currentVideoPageData.player;
-          youtubePlayer = targetPlayer;
-        } else {
-          const videoDetailsContainer =
-            document.querySelector("#youtube-player");
-          if (videoDetailsContainer) {
-            try {
-              const iframe = videoDetailsContainer.querySelector("iframe");
-              if (iframe && window.YT && window.YT.get) {
-                const playerId = iframe.id || "youtube-player";
-                targetPlayer = window.YT.get(playerId);
-                if (targetPlayer) {
-                  youtubePlayer = targetPlayer;
-                  window.currentVideoPageData.player = targetPlayer;
-                }
-              }
-            } catch (e) {
-              console.warn("[PlayNext] Error getting VideoDetails player:", e);
-            }
-          }
-        }
-      }
-
-      if (video.videoId && targetPlayer && targetPlayer.loadVideoById) {
-        targetPlayer.loadVideoById(video.videoId);
-        currentSong = video;
-        currentIndex = randomIndex;
-        currentTime = 0;
-        updatePlayerInfo();
-        updateModalInfo();
-        updateModalPlaylist();
-
-        setTimeout(() => {
-          try {
-            if (targetPlayer.seekTo) {
-              targetPlayer.seekTo(0, true);
-            }
-            if (targetPlayer.playVideo) {
-              targetPlayer.playVideo();
-            }
-          } catch (e) {
-            console.warn("[PlayNext] Error playing video:", e);
-          }
-        }, 100);
-
-        document.dispatchEvent(
-          new CustomEvent("playerSongChanged", {
-            detail: { song: video, index: randomIndex, skipSync: true },
-          })
-        );
-        document.dispatchEvent(
-          new CustomEvent("videoDetailChanged", {
-            detail: { index: randomIndex, video },
-          })
-        );
-        document.dispatchEvent(
-          new CustomEvent("modalVideoChanged", {
-            detail: { index: randomIndex, video },
-          })
-        );
-      }
+      handleVideoChange(playlistToUse[randomIndex], randomIndex, playlistToUse);
     } else {
       playSong(playlistToUse[randomIndex], playlistToUse, randomIndex);
     }
   } else {
     const nextIndex = (currentIndex + 1) % playlistToUse.length;
     if (isVideoMode) {
-      const video = playlistToUse[nextIndex];
-      let targetPlayer = youtubePlayer;
-
-      if (
-        window.currentVideoPageData &&
-        window.currentVideoPageData.combinedVideos
-      ) {
-        if (window.currentVideoPageData.player) {
-          targetPlayer = window.currentVideoPageData.player;
-          youtubePlayer = targetPlayer;
-        } else {
-          const videoDetailsContainer =
-            document.querySelector("#youtube-player");
-          if (videoDetailsContainer) {
-            try {
-              const iframe = videoDetailsContainer.querySelector("iframe");
-              if (iframe && window.YT && window.YT.get) {
-                const playerId = iframe.id || "youtube-player";
-                targetPlayer = window.YT.get(playerId);
-                if (targetPlayer) {
-                  youtubePlayer = targetPlayer;
-                  window.currentVideoPageData.player = targetPlayer;
-                }
-              }
-            } catch (e) {
-              console.warn("[PlayNext] Error getting VideoDetails player:", e);
-            }
-          }
-        }
-      }
-
-      if (video.videoId && targetPlayer && targetPlayer.loadVideoById) {
-        targetPlayer.loadVideoById(video.videoId);
-        currentSong = video;
-        currentIndex = nextIndex;
-        currentTime = 0;
-        updatePlayerInfo();
-        updateModalInfo();
-        updateModalPlaylist();
-
-        setTimeout(() => {
-          try {
-            if (targetPlayer.seekTo) {
-              targetPlayer.seekTo(0, true);
-            }
-            if (targetPlayer.playVideo) {
-              targetPlayer.playVideo();
-            }
-          } catch (e) {
-            console.warn("[PlayNext] Error playing video:", e);
-          }
-        }, 100);
-
-        document.dispatchEvent(
-          new CustomEvent("playerSongChanged", {
-            detail: { song: video, index: nextIndex, skipSync: true },
-          })
-        );
-        document.dispatchEvent(
-          new CustomEvent("videoDetailChanged", {
-            detail: { index: nextIndex, video },
-          })
-        );
-        document.dispatchEvent(
-          new CustomEvent("modalVideoChanged", {
-            detail: { index: nextIndex, video },
-          })
-        );
-      }
+      handleVideoChange(playlistToUse[nextIndex], nextIndex, playlistToUse);
     } else {
       playSong(playlistToUse[nextIndex], playlistToUse, nextIndex);
     }
@@ -412,7 +329,7 @@ export function playNext() {
 }
 
 export function playPrevious() {
-  let playlistToUse = playlist; 
+  let playlistToUse = playlist;
   if (window.currentVideoPageData && window.currentVideoPageData.combinedVideos) {
     playlistToUse = window.currentVideoPageData.combinedVideos;
   }
@@ -424,81 +341,10 @@ export function playPrevious() {
     return;
   }
 
-  const prevIndex =
-    currentIndex - 1 < 0 ? playlistToUse.length - 1 : currentIndex - 1;
-
+  const prevIndex = currentIndex - 1 < 0 ? playlistToUse.length - 1 : currentIndex - 1;
+  
   if (isVideoMode) {
-    const video = playlistToUse[prevIndex];
-    let targetPlayer = youtubePlayer;
-
-    if (
-      window.currentVideoPageData &&
-      window.currentVideoPageData.combinedVideos
-    ) {
-      if (window.currentVideoPageData.player) {
-        targetPlayer = window.currentVideoPageData.player;
-        youtubePlayer = targetPlayer;
-      } else {
-        const videoDetailsContainer = document.querySelector("#youtube-player");
-        if (videoDetailsContainer) {
-          try {
-            const iframe = videoDetailsContainer.querySelector("iframe");
-            if (iframe && window.YT && window.YT.get) {
-              const playerId = iframe.id || "youtube-player";
-              targetPlayer = window.YT.get(playerId);
-              if (targetPlayer) {
-                youtubePlayer = targetPlayer;
-                window.currentVideoPageData.player = targetPlayer;
-              }
-            }
-          } catch (e) {
-            console.warn(
-              "[PlayPrevious] Error getting VideoDetails player:",
-              e
-            );
-          }
-        }
-      }
-    }
-
-    if (video.videoId && targetPlayer && targetPlayer.loadVideoById) {
-      targetPlayer.loadVideoById(video.videoId);
-      currentSong = video;
-      currentIndex = prevIndex;
-      currentTime = 0;
-      updatePlayerInfo();
-      updateModalInfo();
-      updateModalPlaylist();
-
-      setTimeout(() => {
-        try {
-          if (targetPlayer.seekTo) {
-            targetPlayer.seekTo(0, true);
-          }
-          if (targetPlayer.playVideo) {
-            targetPlayer.playVideo();
-          }
-        } catch (e) {
-          console.warn("[PlayPrevious] Error playing video:", e);
-        }
-      }, 100);
-
-      document.dispatchEvent(
-        new CustomEvent("playerSongChanged", {
-          detail: { song: video, index: prevIndex, skipSync: true },
-        })
-      );
-      document.dispatchEvent(
-        new CustomEvent("videoDetailChanged", {
-          detail: { index: prevIndex, video },
-        })
-      );
-      document.dispatchEvent(
-        new CustomEvent("modalVideoChanged", {
-          detail: { index: prevIndex, video },
-        })
-      );
-    }
+    handleVideoChange(playlistToUse[prevIndex], prevIndex, playlistToUse);
   } else {
     playSong(playlistToUse[prevIndex], playlistToUse, prevIndex);
   }
