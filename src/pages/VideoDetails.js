@@ -255,10 +255,6 @@ function onPlayerReady(event, containerId) {
       try {
         const last = window.playbarLastState || {};
         if (last && (last.currentTime || last.currentTime === 0)) {
-          console.debug(
-            "[Modal Transfer] applying playbarLastState to modal",
-            last
-          );
           try {
             if (typeof modalPlayer.seekTo === "function")
               modalPlayer.seekTo(last.currentTime || 0, true);
@@ -621,10 +617,6 @@ async function renderHero(data, combinedVideos) {
     const persistPlayer = () => {
       try {
         if (!player) return;
-        console.debug("[Persist Player] handoff start", {
-          id: currentVideoData?.id,
-        });
-
         let wasPlaying = false;
         let currentTime = 0;
         try {
@@ -697,11 +689,6 @@ async function renderHero(data, combinedVideos) {
             player = null;
           } catch (e) {}
         }, 200);
-
-        console.debug("[Persist Player] handoff queued", {
-          wasPlaying,
-          currentTime,
-        });
       } catch (e) {
         console.warn("[Persist Player] Error:", e);
       }

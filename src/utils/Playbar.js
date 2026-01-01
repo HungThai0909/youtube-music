@@ -819,14 +819,6 @@ document.addEventListener("playerHandOff", (e) => {
       videoData,
       videoList,
     } = d;
-
-    console.debug("[Playbar] playerHandOff received", {
-      id: videoData?.id,
-      handedTime,
-      wasPlaying,
-      hasPlayer: !!playerInstance,
-    });
-
     if (playerInstance) {
       (function createAndAdoptPlayer() {
         try {
@@ -873,13 +865,6 @@ document.addEventListener("playerHandOff", (e) => {
                 setTimeout(instantiate, 100);
                 return;
               }
-
-              console.debug("[Playbar] Creating internal player for handoff", {
-                vid,
-                handedTime,
-                wasPlaying,
-              });
-
               const p = new window.YT.Player(playerDivId, {
                 videoId: vid,
                 playerVars: {
@@ -954,7 +939,6 @@ document.addEventListener("playerHandOff", (e) => {
             const pid = iframe.id || "youtube-player";
             const p = window.YT.get(pid);
             if (p) {
-              console.debug("[Playbar] Found YT player via iframe lookup");
               syncWithYouTubePlayer(p, videoData, videoList, true);
 
               let attempts2 = 0;
