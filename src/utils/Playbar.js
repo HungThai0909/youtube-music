@@ -244,9 +244,12 @@ function handleVideoChange(video, index, videoList) {
     playSong(video, videoList, index);
     return;
   }
-  
+
   let targetPlayer = youtubePlayer;
-  if (window.currentVideoPageData && window.currentVideoPageData.combinedVideos) {
+  if (
+    window.currentVideoPageData &&
+    window.currentVideoPageData.combinedVideos
+  ) {
     if (window.currentVideoPageData.player) {
       targetPlayer = window.currentVideoPageData.player;
       youtubePlayer = targetPlayer;
@@ -264,7 +267,10 @@ function handleVideoChange(video, index, videoList) {
             }
           }
         } catch (e) {
-          console.warn("[handleVideoChange] Error getting VideoDetails player:", e);
+          console.warn(
+            "[handleVideoChange] Error getting VideoDetails player:",
+            e
+          );
         }
       }
     }
@@ -276,36 +282,145 @@ function handleVideoChange(video, index, videoList) {
     playlist = videoList;
     currentTime = 0;
     hasTrackedPlay = false;
+    let priorVol = volume;
+    let priorMuted = isMuted;
+    try {
+      if (targetPlayer && typeof targetPlayer.getVolume === "function") {
+        const v = targetPlayer.getVolume();
+        if (Number.isFinite(v)) priorVol = Math.round(v);
+      }
+      if (targetPlayer && typeof targetPlayer.isMuted === "function") {
+        priorMuted = !!targetPlayer.isMuted();
+      }
+    } catch (e) {
+    }
     targetPlayer.loadVideoById(video.videoId);
+    try {
+      if (typeof targetPlayer.setVolume === "function") {
+        targetPlayer.setVolume(priorVol);
+      }
+      if (typeof targetPlayer.isMuted === "function") {
+        if (priorMuted) {
+          if (typeof targetPlayer.mute === "function") targetPlayer.mute();
+        } else {
+          if (typeof targetPlayer.unMute === "function") targetPlayer.unMute();
+        }
+      }
+    } catch (e) {
+      console.warn(
+        "[handleVideoChange] Error restoring player volume/mute:",
+        e
+      );
+    }
+    volume = priorVol;
+    isMuted = priorMuted;
+    updateVolumeUI();
+    updateModalVolumeUI();
+
     updatePlayerInfo();
     updateModalInfo();
     updateModalPlaylist();
-    setTimeout(() => {
+
+    const modalEl = document.querySelector("#player-modal");
+    const isModalOpen = modalEl && !modalEl.classList.contains("hidden");
+
+    if (isModalOpen) {
       try {
-        if (targetPlayer.seekTo) {
-          targetPlayer.seekTo(0, true);
+        if (typeof syncWithYouTubePlayer === "function") {
+          syncWithYouTubePlayer(targetPlayer, video, videoList, true);
         }
-        if (targetPlayer.playVideo) {
-          targetPlayer.playVideo();
-        }
-        isPlaying = true;
-        updatePlayButton();
-        updateModalPlayButton();
       } catch (e) {
-        console.warn("[handleVideoChange] Error playing video:", e);
+        console.warn("[handleVideoChange] Error syncing modal player:", e);
       }
-    }, 300);
-    document.dispatchEvent(
-      new CustomEvent("playerSongChanged", {
-        detail: { song: video, index: index, skipSync: true },
-      })
-    );
+      document.dispatchEvent(
+        new CustomEvent("modalVideoChanged", { detail: { index } })
+      );
+      try {
+        if (window.currentVideoPageData && window.currentVideoPageData.player) {
+          const mainPlayer = window.currentVideoPageData.player;
+          if (mainPlayer && mainPlayer.loadVideoById) {
+            try {
+              mainPlayer.loadVideoById(video.videoId);
+              setTimeout(() => {
+                try {
+                  if (mainPlayer.pauseVideo) mainPlayer.pauseVideo();
+                } catch (e) {}
+              }, 100);
+            } catch (e) {
+              console.warn(
+                "[handleVideoChange] Error preloading main player:",
+                e
+              );
+            }
+          }
+        }
+      } catch (e) {
+        console.warn("[handleVideoChange] Error preloading main player:", e);
+      }
+      setTimeout(() => {
+        try {
+          if (targetPlayer.seekTo) {
+            targetPlayer.seekTo(0, true);
+          }
+          if (targetPlayer.playVideo) {
+            targetPlayer.playVideo();
+          }
+          try {
+            if (typeof targetPlayer.setVolume === "function")
+              targetPlayer.setVolume(priorVol);
+            if (priorMuted) {
+              if (typeof targetPlayer.mute === "function") targetPlayer.mute();
+            } else {
+              if (typeof targetPlayer.unMute === "function")
+                targetPlayer.unMute();
+            }
+          } catch (e) {}
+
+          isPlaying = true;
+          updatePlayButton();
+          updateModalPlayButton();
+        } catch (e) {
+          console.warn("[handleVideoChange] Error playing modal video:", e);
+        }
+      }, 300);
+
+      document.dispatchEvent(
+        new CustomEvent("playerSongChanged", {
+          detail: { song: video, index: index, skipSync: true },
+        })
+      );
+    } else {
+      setTimeout(() => {
+        try {
+          if (targetPlayer.seekTo) {
+            targetPlayer.seekTo(0, true);
+          }
+          if (targetPlayer.playVideo) {
+            targetPlayer.playVideo();
+          }
+          isPlaying = true;
+          updatePlayButton();
+          updateModalPlayButton();
+        } catch (e) {
+          console.warn("[handleVideoChange] Error playing video:", e);
+        }
+      }, 300);
+
+      document.dispatchEvent(
+        new CustomEvent("playerSongChanged", {
+          detail: { song: video, index: index, skipSync: true },
+        })
+      );
+    }
   }
 }
 
 export function playNext() {
   let playlistToUse = playlist;
-  if (window.currentVideoPageData && window.currentVideoPageData.combinedVideos) {
+  if (
+    window.currentVideoPageData &&
+    window.currentVideoPageData.combinedVideos
+  ) {
     playlistToUse = window.currentVideoPageData.combinedVideos;
   }
 
@@ -330,7 +445,10 @@ export function playNext() {
 
 export function playPrevious() {
   let playlistToUse = playlist;
-  if (window.currentVideoPageData && window.currentVideoPageData.combinedVideos) {
+  if (
+    window.currentVideoPageData &&
+    window.currentVideoPageData.combinedVideos
+  ) {
     playlistToUse = window.currentVideoPageData.combinedVideos;
   }
 
@@ -341,8 +459,9 @@ export function playPrevious() {
     return;
   }
 
-  const prevIndex = currentIndex - 1 < 0 ? playlistToUse.length - 1 : currentIndex - 1;
-  
+  const prevIndex =
+    currentIndex - 1 < 0 ? playlistToUse.length - 1 : currentIndex - 1;
+
   if (isVideoMode) {
     handleVideoChange(playlistToUse[prevIndex], prevIndex, playlistToUse);
   } else {

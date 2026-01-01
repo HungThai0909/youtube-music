@@ -17,6 +17,7 @@ let currentVideoData = null;
 let currentVideos = [];
 let mainPlayerVolumeCheckInterval = null;
 let modalPlayerVolumeCheckInterval = null;
+let modalShouldAutoplay = false;
 
 export const VideoDetail = (match) => {
   const app = document.querySelector("#app");
@@ -247,15 +248,35 @@ function onPlayerReady(event, containerId) {
         syncWithYouTubePlayer(modalPlayer, currentVideoData, currentVideos);
 
         try {
-          if (modalPlayer.playVideo) {
-            modalPlayer.playVideo();
+          const shouldPlay = !!modalShouldAutoplay;
+          if (shouldPlay) {
+            if (modalPlayer.playVideo) {
+              modalPlayer.playVideo();
+            }
+          } else {
+            if (modalPlayer.pauseVideo) {
+              try {
+                modalPlayer.pauseVideo();
+              } catch (e) {}
+            }
           }
         } catch (e) {
-          console.warn("[Modal Open] Error starting modal playback:", e);
+          console.warn("[Modal Open] Error controlling modal playback:", e);
         }
       } else {
         syncModalPlayerWithMainPlayer();
+        if (!modalShouldAutoplay) {
+          try {
+            if (modalPlayer && modalPlayer.pauseVideo) modalPlayer.pauseVideo();
+          } catch (e) {}
+          try {
+            updateModalPlayButton();
+            updatePlayButton();
+          } catch (e) {}
+        }
       }
+
+      modalShouldAutoplay = false;
     }, 100);
   }
 }
@@ -484,9 +505,10 @@ async function renderHero(data, combinedVideos) {
 
 function setupModalEventListeners() {
   document.addEventListener("modalVideoChanged", handleModalVideoChange);
-  
+
   document.addEventListener("playerModalOpened", (e) => {
     const isVideoMode = e.detail?.isVideoMode;
+    modalShouldAutoplay = !!e.detail?.isPlaying;
     if (isVideoMode && currentVideoData && currentVideoData.videoId) {
       setTimeout(() => {
         createYouTubePlayer(currentVideoData.videoId, "modal-youtube-player");
@@ -497,14 +519,29 @@ function setupModalEventListeners() {
   document.addEventListener("playerModalClosed", () => {
     if (modalPlayer && player) {
       try {
+        let modalWasPlaying = false;
+        try {
+          if (modalPlayer && modalPlayer.getPlayerState) {
+            modalWasPlaying = modalPlayer.getPlayerState() === 1;
+          }
+        } catch (e) {}
         syncMainPlayerWithModalPlayer();
 
         if (typeof syncWithYouTubePlayer === "function") {
           syncWithYouTubePlayer(player, currentVideoData, currentVideos);
         }
-
-        if (player && player.playVideo) {
-          player.playVideo();
+        try {
+          if (modalWasPlaying) {
+            if (player && player.playVideo) {
+              player.playVideo();
+            }
+          } else {
+            if (player && player.pauseVideo) {
+              player.pauseVideo();
+            }
+          }
+        } catch (e) {
+          console.warn("[Modal Close] Error controlling main player:", e);
         }
       } catch (e) {
         console.warn("[Modal Close] Error resuming main player:", e);
@@ -525,10 +562,10 @@ function setupModalEventListeners() {
     currentVideoData = song;
     updateHero(song);
     let foundIndex = currentVideos.findIndex((v) => v.id === song.id);
-    if (typeof index === 'number' && index >= 0) {
+    if (typeof index === "number" && index >= 0) {
       foundIndex = index;
     }
-    
+
     if (foundIndex !== -1) {
       updateVideoSelection(foundIndex);
     }
@@ -612,7 +649,7 @@ function setupVideoClickHandlers(currentVideo, videos) {
       currentVideoData = video;
       currentVideos = videos;
       updateHero(video);
-      
+
       if (videoId) {
         stopAudioPlayback();
         loadVideoInPlayer(videoId);
@@ -627,7 +664,7 @@ function setupVideoClickHandlers(currentVideo, videos) {
           } catch (e) {}
         }, 100);
       }
-      
+
       if (player && typeof syncWithYouTubePlayer === "function") {
         syncWithYouTubePlayer(player, video, videos, false);
       }

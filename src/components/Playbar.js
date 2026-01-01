@@ -151,7 +151,7 @@ export function toggleModal() {
     updateModalShuffleButton();
     document.dispatchEvent(
       new CustomEvent("playerModalOpened", {
-        detail: { isVideoMode: state.isVideoMode },
+        detail: { isVideoMode: state.isVideoMode, isPlaying: state.isPlaying },
       })
     );
   } else {
